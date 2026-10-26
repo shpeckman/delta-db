@@ -2,6 +2,7 @@ require "../spec_helper"
 
 private struct TestOp
   getter ts : DeltaDB::Lamport
+
   def initialize(@ts : DeltaDB::Lamport)
   end
 end

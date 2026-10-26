@@ -54,28 +54,28 @@ module DeltaDB
     private def migrate : Nil
       [
         "CREATE TABLE IF NOT EXISTS histories (" \
-          "history_key INTEGER PRIMARY KEY, history_uuid BLOB NOT NULL UNIQUE, " \
-          "max_timestamp INTEGER NOT NULL DEFAULT 0, epoch_count INTEGER NOT NULL DEFAULT 0, " \
-          "run_format INTEGER NOT NULL DEFAULT 0)",
+        "history_key INTEGER PRIMARY KEY, history_uuid BLOB NOT NULL UNIQUE, " \
+        "max_timestamp INTEGER NOT NULL DEFAULT 0, epoch_count INTEGER NOT NULL DEFAULT 0, " \
+        "run_format INTEGER NOT NULL DEFAULT 0)",
         "CREATE TABLE IF NOT EXISTS history_delta_values (" \
-          "history_key INTEGER NOT NULL, actor INTEGER NOT NULL, timestamp INTEGER NOT NULL, " \
-          "value BLOB NOT NULL, chunk_count INTEGER NOT NULL DEFAULT 1, " \
-          "schema_version INTEGER NOT NULL, pack_id INTEGER, pack_offset INTEGER, value_len INTEGER, " \
-          "PRIMARY KEY (history_key, actor, timestamp)) WITHOUT ROWID",
+        "history_key INTEGER NOT NULL, actor INTEGER NOT NULL, timestamp INTEGER NOT NULL, " \
+        "value BLOB NOT NULL, chunk_count INTEGER NOT NULL DEFAULT 1, " \
+        "schema_version INTEGER NOT NULL, pack_id INTEGER, pack_offset INTEGER, value_len INTEGER, " \
+        "PRIMARY KEY (history_key, actor, timestamp)) WITHOUT ROWID",
         "CREATE TABLE IF NOT EXISTS history_delta_value_overflow_chunks (" \
-          "history_key INTEGER NOT NULL, actor INTEGER NOT NULL, timestamp INTEGER NOT NULL, " \
-          "chunk_index INTEGER NOT NULL, data BLOB NOT NULL, " \
-          "PRIMARY KEY (history_key, actor, timestamp, chunk_index)) WITHOUT ROWID",
+        "history_key INTEGER NOT NULL, actor INTEGER NOT NULL, timestamp INTEGER NOT NULL, " \
+        "chunk_index INTEGER NOT NULL, data BLOB NOT NULL, " \
+        "PRIMARY KEY (history_key, actor, timestamp, chunk_index)) WITHOUT ROWID",
         "CREATE TABLE IF NOT EXISTS history_versions (" \
-          "history_key INTEGER NOT NULL, version_key INTEGER NOT NULL, version TEXT NOT NULL, " \
-          "PRIMARY KEY (history_key, version_key), UNIQUE (history_key, version)) WITHOUT ROWID",
+        "history_key INTEGER NOT NULL, version_key INTEGER NOT NULL, version TEXT NOT NULL, " \
+        "PRIMARY KEY (history_key, version_key), UNIQUE (history_key, version)) WITHOUT ROWID",
         "CREATE TABLE IF NOT EXISTS history_actors (" \
-          "history_key INTEGER NOT NULL, actor_ordinal INTEGER NOT NULL, actor TEXT NOT NULL, " \
-          "PRIMARY KEY (history_key, actor_ordinal), UNIQUE (history_key, actor)) WITHOUT ROWID",
+        "history_key INTEGER NOT NULL, actor_ordinal INTEGER NOT NULL, actor TEXT NOT NULL, " \
+        "PRIMARY KEY (history_key, actor_ordinal), UNIQUE (history_key, actor)) WITHOUT ROWID",
         "CREATE TABLE IF NOT EXISTS history_timelines (" \
-          "history_key INTEGER NOT NULL, timeline_actor INTEGER NOT NULL, " \
-          "timeline_timestamp INTEGER NOT NULL, version TEXT, version_key INTEGER, " \
-          "PRIMARY KEY (history_key, timeline_actor, timeline_timestamp)) WITHOUT ROWID",
+        "history_key INTEGER NOT NULL, timeline_actor INTEGER NOT NULL, " \
+        "timeline_timestamp INTEGER NOT NULL, version TEXT, version_key INTEGER, " \
+        "PRIMARY KEY (history_key, timeline_actor, timeline_timestamp)) WITHOUT ROWID",
         "CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
         "CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
       ].each do |sql|
