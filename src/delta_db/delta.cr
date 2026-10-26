@@ -3,10 +3,10 @@ require "uuid"
 module DeltaDB
   # The core identity types of the delta/history engine.
   #
-  # These are UUID-backed newtypes recovered from `deltadb::delta` (and
-  # `deltadb::history`) symbols. Zed/Delat represents each as a distinct type so
-  # they cannot be accidentally mixed; we preserve that with distinct Crystal
-  # structs over a shared `UUID` payload.
+  # Recovered from `deltadb::delta` / `deltadb::history` symbols and validated
+  # against the real database: UUID-backed newtypes, plus the composite
+  # `TimelineId` (uuid + generation) and `DeltaBatchId` (uuid + ordinal), and
+  # `HistoryVersion` (wraps a `DeltaBatchId`, stored as encoded text).
 
   macro uuid_id(name)
     struct {{name.id}}
@@ -40,36 +40,80 @@ module DeltaDB
   # Identifies a remote (shared) repository.
   uuid_id RemoteRepositoryId
 
-  # Identifies a timeline (a linear history of deltas).
-  uuid_id TimelineId
-
   # Identifies a history (a set of timelines).
   uuid_id HistoryId
 
   # Identifies a single delta.
   uuid_id DeltaId
 
-  # A monotonically-increasing version number within a timeline/history.
+  # Identifies a timeline: a UUID plus a reset generation.
   #
-  # Recovered from `deltadb::history::HistoryVersion`.
-  struct HistoryVersion
-    include Comparable(HistoryVersion)
+  # Observed in the runtime log as `TimelineId(UUID.N)`.
+  struct TimelineId
+    include Comparable(TimelineId)
 
-    getter value : UInt64
+    getter uuid : UUID
+    getter generation : UInt32
 
-    def initialize(@value : UInt64)
+    def initialize(@uuid : UUID, @generation : UInt32 = 0u32)
     end
 
-    def self.zero : HistoryVersion
-      HistoryVersion.new(0u64)
+    def self.random : TimelineId
+      TimelineId.new(UUID.random)
     end
 
-    def <=>(other : HistoryVersion) : Int32
-      @value <=> other.value
+    def <=>(other : TimelineId) : Int32
+      r = @uuid <=> other.uuid
+      r == 0 ? @generation <=> other.generation : r
     end
 
     def to_s(io : IO) : Nil
-      io << @value
+      @uuid.to_s(io)
+      io << '.' << @generation
+    end
+  end
+
+  # Identifies a batch of deltas: a UUID plus a monotonic batch ordinal.
+  #
+  # Observed as `DeltaBatchId(UUID.N)`.
+  struct DeltaBatchId
+    include Comparable(DeltaBatchId)
+
+    getter uuid : UUID
+    getter ordinal : UInt64
+
+    def initialize(@uuid : UUID, @ordinal : UInt64)
+    end
+
+    def <=>(other : DeltaBatchId) : Int32
+      r = @uuid <=> other.uuid
+      r == 0 ? @ordinal <=> other.ordinal : r
+    end
+
+    def to_s(io : IO) : Nil
+      @uuid.to_s(io)
+      io << '.' << @ordinal
+    end
+  end
+
+  # A version within a history, wrapping a `DeltaBatchId`.
+  #
+  # Recovered from `deltadb::history::HistoryVersion`; stored as encoded text
+  # (`encode_version_text`) in the `history_versions.version` column.
+  struct HistoryVersion
+    include Comparable(HistoryVersion)
+
+    getter batch_id : DeltaBatchId
+
+    def initialize(@batch_id : DeltaBatchId)
+    end
+
+    def <=>(other : HistoryVersion) : Int32
+      @batch_id <=> other.batch_id
+    end
+
+    def to_s(io : IO) : Nil
+      @batch_id.to_s(io)
     end
   end
 end

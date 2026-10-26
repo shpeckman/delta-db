@@ -1,19 +1,18 @@
 require "sqlite3"
 
 module DeltaDB
-  # A single delta: a header (id, parent, actor, timestamp) plus a byte payload.
+  # A single delta: its storage identity is `(history, actor, timestamp)` plus a
+  # byte payload.
   struct Delta
-    getter id : DeltaId
-    getter timeline_id : TimelineId
-    getter parent_delta_id : DeltaId?
+    getter history : HistoryId
+    getter timeline : TimelineId
     getter actor : ActorUuid
     getter timestamp : Lamport
     getter value : Bytes
 
     def initialize(
-      @id : DeltaId,
-      @timeline_id : TimelineId,
-      @parent_delta_id : DeltaId?,
+      @history : HistoryId,
+      @timeline : TimelineId,
       @actor : ActorUuid,
       @timestamp : Lamport,
       @value : Bytes,
@@ -23,11 +22,13 @@ module DeltaDB
 
   # SQLite-backed storage for the delta/history engine.
   #
-  # Clean-room schema (own design) capturing the semantics recovered from
-  # `deltadb::storage`: deltas (header + value with overflow chunks), timelines,
-  # actors, versions, and schema metadata.
+  # The schema now matches the real Delta `data.sqlite` (recovered + validated):
+  # `histories` (integer `history_key` + `history_uuid` blob), `history_delta_values`
+  # keyed by `(history_key, actor, timestamp)`, `history_versions` with a
+  # `version TEXT` (encoded `DeltaBatchId`) + integer `version_key`, `history_actors`,
+  # plus `app_meta`/`metadata` key-value tables. `WITHOUT ROWID` where the real
+  # tables use it.
   class Storage
-    # Values larger than this many bytes spill into overflow chunks.
     OVERFLOW_THRESHOLD = 16
 
     getter db : DB::Database
@@ -52,19 +53,31 @@ module DeltaDB
 
     private def migrate : Nil
       [
+        "CREATE TABLE IF NOT EXISTS histories (" \
+          "history_key INTEGER PRIMARY KEY, history_uuid BLOB NOT NULL UNIQUE, " \
+          "max_timestamp INTEGER NOT NULL DEFAULT 0, epoch_count INTEGER NOT NULL DEFAULT 0, " \
+          "run_format INTEGER NOT NULL DEFAULT 0)",
+        "CREATE TABLE IF NOT EXISTS history_delta_values (" \
+          "history_key INTEGER NOT NULL, actor INTEGER NOT NULL, timestamp INTEGER NOT NULL, " \
+          "value BLOB NOT NULL, chunk_count INTEGER NOT NULL DEFAULT 1, " \
+          "schema_version INTEGER NOT NULL, pack_id INTEGER, pack_offset INTEGER, value_len INTEGER, " \
+          "PRIMARY KEY (history_key, actor, timestamp)) WITHOUT ROWID",
+        "CREATE TABLE IF NOT EXISTS history_delta_value_overflow_chunks (" \
+          "history_key INTEGER NOT NULL, actor INTEGER NOT NULL, timestamp INTEGER NOT NULL, " \
+          "chunk_index INTEGER NOT NULL, data BLOB NOT NULL, " \
+          "PRIMARY KEY (history_key, actor, timestamp, chunk_index)) WITHOUT ROWID",
+        "CREATE TABLE IF NOT EXISTS history_versions (" \
+          "history_key INTEGER NOT NULL, version_key INTEGER NOT NULL, version TEXT NOT NULL, " \
+          "PRIMARY KEY (history_key, version_key), UNIQUE (history_key, version)) WITHOUT ROWID",
+        "CREATE TABLE IF NOT EXISTS history_actors (" \
+          "history_key INTEGER NOT NULL, actor_ordinal INTEGER NOT NULL, actor TEXT NOT NULL, " \
+          "PRIMARY KEY (history_key, actor_ordinal), UNIQUE (history_key, actor)) WITHOUT ROWID",
+        "CREATE TABLE IF NOT EXISTS history_timelines (" \
+          "history_key INTEGER NOT NULL, timeline_actor INTEGER NOT NULL, " \
+          "timeline_timestamp INTEGER NOT NULL, version TEXT, version_key INTEGER, " \
+          "PRIMARY KEY (history_key, timeline_actor, timeline_timestamp)) WITHOUT ROWID",
         "CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
-        "CREATE TABLE IF NOT EXISTS actors (actor_uuid TEXT PRIMARY KEY, last_seen_at INTEGER NOT NULL)",
-        "CREATE TABLE IF NOT EXISTS timelines (timeline_id TEXT PRIMARY KEY, history_id TEXT NOT NULL, head_delta_id TEXT)",
-        "CREATE TABLE IF NOT EXISTS deltas (" \
-          "delta_id TEXT PRIMARY KEY, timeline_id TEXT NOT NULL, parent_delta_id TEXT, " \
-          "actor_uuid TEXT NOT NULL, timestamp_value INTEGER NOT NULL, " \
-          "timestamp_replica_id INTEGER NOT NULL, value BLOB NOT NULL)",
-        "CREATE TABLE IF NOT EXISTS delta_value_overflow_chunks (" \
-          "delta_id TEXT NOT NULL, chunk_index INTEGER NOT NULL, chunk BLOB NOT NULL, " \
-          "PRIMARY KEY (delta_id, chunk_index))",
-        "CREATE TABLE IF NOT EXISTS versions (" \
-          "timeline_id TEXT NOT NULL, version INTEGER NOT NULL, delta_id TEXT NOT NULL, " \
-          "PRIMARY KEY (timeline_id, version))",
+        "CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
       ].each do |sql|
         @db.exec(sql)
       end
@@ -90,17 +103,24 @@ module DeltaDB
       meta_set("schema_version", version.to_s)
     end
 
-    # -- actors / timelines -------------------------------------------------
+    # -- histories ---------------------------------------------------------
 
-    def record_actor(actor : ActorUuid, at : Int64) : Nil
-      @db.exec("INSERT OR REPLACE INTO actors (actor_uuid, last_seen_at) VALUES (?, ?)", actor.value.to_s, at)
+    # Resolve (or create) the integer `history_key` for a `HistoryId`.
+    def history_key_for(history : HistoryId) : Int64
+      uuid = history.value.bytes.to_slice
+      key = @db.query_one?("SELECT history_key FROM histories WHERE history_uuid = ?", uuid) do |rs|
+        rs.read(Int64)
+      end
+      key || begin
+        @db.exec("INSERT INTO histories (history_uuid) VALUES (?)", uuid)
+        @db.scalar("SELECT last_insert_rowid()").as(Int64)
+      end
     end
 
-    def ensure_timeline(timeline_id : TimelineId, history_id : HistoryId) : Nil
-      @db.exec(
-        "INSERT OR IGNORE INTO timelines (timeline_id, history_id) VALUES (?, ?)",
-        timeline_id.value.to_s, history_id.value.to_s,
-      )
+    def record_actor(history : HistoryId, actor : ActorUuid) : Nil
+      key = history_key_for(history)
+      ordinal = @db.scalar("SELECT COALESCE(MAX(actor_ordinal) + 1, 0) FROM history_actors WHERE history_key = ?", key).as(Int64)
+      @db.exec("INSERT OR IGNORE INTO history_actors (history_key, actor_ordinal, actor) VALUES (?, ?, ?)", key, ordinal, actor.value.to_s)
     end
 
     # -- deltas -------------------------------------------------------------
@@ -108,64 +128,64 @@ module DeltaDB
     # Insert a delta (header + value). Large values spill into overflow chunks.
     def insert_delta(delta : Delta) : Nil
       @db.transaction do |tx|
-        insert_delta(tx.connection, delta)
+        conn = tx.connection
+        key = history_conn(conn, delta.history)
+        insert_delta(conn, key, delta)
       end
     end
 
-    private def insert_delta(conn : DB::Connection, delta : Delta) : Nil
+    private def insert_delta(conn : DB::Connection, key : Int64, delta : Delta) : Nil
+      actor = delta.timestamp.replica_id.value.to_i64
+      timestamp = delta.timestamp.value.to_i64
       value = delta.value
       if value.size > OVERFLOW_THRESHOLD
         inline = value[0, OVERFLOW_THRESHOLD]
         conn.exec(
-          "INSERT INTO deltas (delta_id, timeline_id, parent_delta_id, actor_uuid, timestamp_value, timestamp_replica_id, value) VALUES (?, ?, ?, ?, ?, ?, ?)",
-          delta.id.value.to_s,
-          delta.timeline_id.value.to_s,
-          delta.parent_delta_id.try(&.value.to_s),
-          delta.actor.value.to_s,
-          delta.timestamp.value.to_i64,
-          delta.timestamp.replica_id.value.to_i32,
-          inline,
+          "INSERT INTO history_delta_values (history_key, actor, timestamp, value, chunk_count, schema_version) VALUES (?, ?, ?, ?, ?, ?)",
+          key, actor, timestamp, inline, 1 + (value.size - OVERFLOW_THRESHOLD - 1) / OVERFLOW_THRESHOLD + 1, 0,
         )
         chunk_index = 0
         offset = OVERFLOW_THRESHOLD
         while offset < value.size
           chunk = value[offset, Math.min(OVERFLOW_THRESHOLD, value.size - offset)]
           conn.exec(
-            "INSERT INTO delta_value_overflow_chunks (delta_id, chunk_index, chunk) VALUES (?, ?, ?)",
-            delta.id.value.to_s, chunk_index, chunk,
+            "INSERT INTO history_delta_value_overflow_chunks (history_key, actor, timestamp, chunk_index, data) VALUES (?, ?, ?, ?, ?)",
+            key, actor, timestamp, chunk_index, chunk,
           )
           chunk_index += 1
           offset += OVERFLOW_THRESHOLD
         end
       else
         conn.exec(
-          "INSERT INTO deltas (delta_id, timeline_id, parent_delta_id, actor_uuid, timestamp_value, timestamp_replica_id, value) VALUES (?, ?, ?, ?, ?, ?, ?)",
-          delta.id.value.to_s,
-          delta.timeline_id.value.to_s,
-          delta.parent_delta_id.try(&.value.to_s),
-          delta.actor.value.to_s,
-          delta.timestamp.value.to_i64,
-          delta.timestamp.replica_id.value.to_i32,
-          value,
+          "INSERT INTO history_delta_values (history_key, actor, timestamp, value, chunk_count, schema_version) VALUES (?, ?, ?, ?, ?, ?)",
+          key, actor, timestamp, value, 1, 0,
         )
       end
     end
 
     # Read and reassemble a delta's full value (inline + overflow chunks).
-    def delta_value(delta_id : DeltaId) : Bytes?
-      inline = @db.query_one?("SELECT value FROM deltas WHERE delta_id = ?", delta_id.value.to_s) do |rs|
+    def delta_value(history : HistoryId, timestamp : Lamport) : Bytes?
+      key = @db.query_one?("SELECT history_key FROM histories WHERE history_uuid = ?", history.value.bytes.to_slice) do |rs|
+        rs.read(Int64)
+      end
+      return nil unless key
+
+      actor = timestamp.replica_id.value.to_i64
+      ts = timestamp.value.to_i64
+      inline = @db.query_one?(
+        "SELECT value FROM history_delta_values WHERE history_key = ? AND actor = ? AND timestamp = ?",
+        key, actor, ts,
+      ) do |rs|
         rs.read(Bytes)
       end
       return nil unless inline
 
       overflow = [] of Bytes
       @db.query(
-        "SELECT chunk FROM delta_value_overflow_chunks WHERE delta_id = ? ORDER BY chunk_index",
-        delta_id.value.to_s,
+        "SELECT data FROM history_delta_value_overflow_chunks WHERE history_key = ? AND actor = ? AND timestamp = ? ORDER BY chunk_index",
+        key, actor, ts,
       ) do |rs|
-        rs.each do
-          overflow << rs.read(Bytes)
-        end
+        rs.each { overflow << rs.read(Bytes) }
       end
 
       return inline if overflow.empty?
@@ -176,69 +196,43 @@ module DeltaDB
       io.to_slice
     end
 
-    def delta_header(delta_id : DeltaId) : Delta?
-      header = @db.query_one?(
-        "SELECT delta_id, timeline_id, parent_delta_id, actor_uuid, timestamp_value, timestamp_replica_id FROM deltas WHERE delta_id = ?",
-        delta_id.value.to_s,
-      ) do |rs|
-        {
-          DeltaId.new(UUID.new(rs.read(String))),
-          TimelineId.new(UUID.new(rs.read(String))),
-          rs.read(String?).try { |s| DeltaId.new(UUID.new(s)) },
-          ActorUuid.new(UUID.new(rs.read(String))),
-          rs.read(Int64).to_u32,
-          rs.read(Int64).to_u16,
-        }
-      end
-      return nil unless header
-
-      id, timeline, parent, actor, ts_value, ts_replica = header
-      value = delta_value(id) || Bytes.empty
-      Delta.new(id, timeline, parent, actor, Lamport.new(ReplicaId.new(ts_replica), ts_value), value)
-    end
-
     # -- timeline append / versions ----------------------------------------
 
-    # Append a delta to its timeline, assigning the next monotonic version and
-    # advancing the timeline head. Returns the assigned version.
+    # Append a delta, assigning the next version and advancing the timeline head.
     def append_delta(delta : Delta) : HistoryVersion
       result : HistoryVersion? = nil
       @db.transaction do |tx|
         conn = tx.connection
-        version = conn.scalar(
-          "SELECT COALESCE(MAX(version) + 1, 0) FROM versions WHERE timeline_id = ?",
-          delta.timeline_id.value.to_s,
+        key = history_conn(conn, delta.history)
+        version_key = conn.scalar(
+          "SELECT COALESCE(MAX(version_key) + 1, 0) FROM history_versions WHERE history_key = ?",
+          key,
         ).as(Int64)
+        batch_id = DeltaBatchId.new(UUID.random, version_key.to_u64)
+        version = batch_id.to_s
 
-        insert_delta(conn, delta)
+        insert_delta(conn, key, delta)
         conn.exec(
-          "INSERT INTO versions (timeline_id, version, delta_id) VALUES (?, ?, ?)",
-          delta.timeline_id.value.to_s, version, delta.id.value.to_s,
+          "INSERT INTO history_versions (history_key, version_key, version) VALUES (?, ?, ?)",
+          key, version_key, version,
         )
         conn.exec(
-          "UPDATE timelines SET head_delta_id = ? WHERE timeline_id = ?",
-          delta.id.value.to_s, delta.timeline_id.value.to_s,
+          "UPDATE history_timelines SET version = ?, version_key = ? WHERE history_key = ?",
+          version, version_key, key,
         )
-        result = HistoryVersion.new(version.to_u64)
+        result = HistoryVersion.new(batch_id)
       end
       result.not_nil!
     end
 
-    def timeline_head(timeline_id : TimelineId) : DeltaId?
-      @db.query_one?(
-        "SELECT head_delta_id FROM timelines WHERE timeline_id = ?",
-        timeline_id.value.to_s,
-      ) do |rs|
-        rs.read(String?).try { |s| DeltaId.new(UUID.new(s)) }
-      end
-    end
-
-    def delta_at_version(timeline_id : TimelineId, version : HistoryVersion) : DeltaId?
-      @db.query_one?(
-        "SELECT delta_id FROM versions WHERE timeline_id = ? AND version = ?",
-        timeline_id.value.to_s, version.value.to_i64,
-      ) do |rs|
-        DeltaId.new(UUID.new(rs.read(String)))
+    # Resolve the history_key without using the pooled connection (for tx use).
+    private def history_conn(conn : DB::Connection, history : HistoryId) : Int64
+      uuid = history.value.bytes.to_slice
+      conn.query_one?("SELECT history_key FROM histories WHERE history_uuid = ?", uuid) do |rs|
+        rs.read(Int64)
+      end || begin
+        conn.exec("INSERT INTO histories (history_uuid) VALUES (?)", uuid)
+        conn.scalar("SELECT last_insert_rowid()").as(Int64)
       end
     end
   end
