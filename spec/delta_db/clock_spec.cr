@@ -76,8 +76,11 @@ describe "delta ids" do
     (a != b).should be_true
   end
 
-  it "HistoryVersion orders and stringifies" do
-    (DeltaDB::HistoryVersion.new(1u64) < DeltaDB::HistoryVersion.new(2u64)).should be_true
-    DeltaDB::HistoryVersion.zero.value.should eq 0u64
+  it "HistoryVersion wraps a DeltaBatchId and orders by ordinal" do
+    uuid = UUID.random
+    a = DeltaDB::HistoryVersion.new(DeltaDB::DeltaBatchId.new(uuid, 0u64))
+    b = DeltaDB::HistoryVersion.new(DeltaDB::DeltaBatchId.new(uuid, 1u64))
+    (a < b).should be_true
+    a.batch_id.ordinal.should eq 0u64
   end
 end
