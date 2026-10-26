@@ -1,0 +1,13 @@
+name: delta-db
+version: 0.1.0
+
+authors:
+  - shpeckman
+
+crystal: ">= 1.22.0"
+
+license: MIT
+
+dependencies:
+  sqlite3:
+    github: crystal-lang/crystal-sqlite3

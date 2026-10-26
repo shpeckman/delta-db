@@ -1,0 +1,153 @@
+module DeltaDB
+  # Summary of a string of text. This is the monoid (`zero` + associative `+`)
+  # that the rope's `SumTree` aggregates over chunks.
+  #
+  # Port of `crates/rope/src/rope.rs` `TextSummary`.
+  #
+  # Note: `lines.column` is a *byte* offset within the line (Zed measures
+  # `Point.column` in bytes, not chars); `PointUtf16.column` is UTF-16 code units.
+  struct TextSummary
+    getter len : UInt64
+    getter chars : UInt64
+    getter len_utf16 : OffsetUtf16
+    getter lines : Point
+    getter first_line_chars : UInt32
+    getter last_line_chars : UInt32
+    getter last_line_len_utf16 : UInt32
+    getter longest_row : UInt32
+    getter longest_row_chars : UInt32
+
+    def initialize(
+      @len : UInt64 = 0u64,
+      @chars : UInt64 = 0u64,
+      @len_utf16 : OffsetUtf16 = OffsetUtf16.zero,
+      @lines : Point = Point.zero,
+      @first_line_chars : UInt32 = 0u32,
+      @last_line_chars : UInt32 = 0u32,
+      @last_line_len_utf16 : UInt32 = 0u32,
+      @longest_row : UInt32 = 0u32,
+      @longest_row_chars : UInt32 = 0u32,
+    )
+    end
+
+    def self.zero : TextSummary
+      TextSummary.new
+    end
+
+    def self.newline : TextSummary
+      TextSummary.new(
+        len: 1u64,
+        chars: 1u64,
+        len_utf16: OffsetUtf16.new(1u64),
+        lines: Point.new(1u32, 0u32),
+      )
+    end
+
+    # Naive reference implementation (mirrors Rust `From<&str> for TextSummary`).
+    # Used both as a constructor and as the spec oracle against the bit-packed
+    # `Chunk#text_summary`.
+    def self.from(text : String) : TextSummary
+      chars = 0u64
+      len_utf16 = 0u64
+      lines = Point.zero
+      first_line_chars = 0u32
+      last_line_chars = 0u32
+      last_line_len_utf16 = 0u32
+      longest_row = 0u32
+      longest_row_chars = 0u32
+
+      text.each_char do |c|
+        cbytes = c.bytesize
+        cutf16 = c.ord > 0xFFFF ? 2 : 1
+        chars += 1u64
+        len_utf16 += cutf16.to_u64
+        if c == '\n'
+          lines += Point.new(1u32, 0u32)
+          last_line_chars = 0u32
+          last_line_len_utf16 = 0u32
+        else
+          lines = Point.new(lines.row, lines.column + cbytes.to_u32)
+          last_line_chars += 1u32
+          last_line_len_utf16 += cutf16.to_u32
+        end
+        first_line_chars = last_line_chars if lines.row == 0
+        if last_line_chars > longest_row_chars
+          longest_row = lines.row
+          longest_row_chars = last_line_chars
+        end
+      end
+
+      TextSummary.new(
+        text.bytesize.to_u64,
+        chars,
+        OffsetUtf16.new(len_utf16),
+        lines,
+        first_line_chars,
+        last_line_chars,
+        last_line_len_utf16,
+        longest_row,
+        longest_row_chars,
+      )
+    end
+
+    def lines_utf16 : PointUtf16
+      PointUtf16.new(@lines.row, @last_line_len_utf16)
+    end
+
+    def add_newline : Nil
+      @len += 1u64
+      @len_utf16 += OffsetUtf16.new(1u64)
+      @last_line_chars = 0u32
+      @last_line_len_utf16 = 0u32
+      @lines += Point.new(1u32, 0u32)
+    end
+
+    # Associative monoid add (port of Rust `AddAssign<&Self>`).
+    def add!(other : TextSummary) : Nil
+      joined_chars = @last_line_chars + other.first_line_chars
+      if joined_chars > @longest_row_chars
+        @longest_row = @lines.row
+        @longest_row_chars = joined_chars
+      end
+      if other.longest_row_chars > @longest_row_chars
+        @longest_row = @lines.row + other.longest_row
+        @longest_row_chars = other.longest_row_chars
+      end
+
+      if @lines.row == 0
+        @first_line_chars += other.first_line_chars
+      end
+
+      if other.lines.row == 0
+        @last_line_chars += other.first_line_chars
+        @last_line_len_utf16 += other.last_line_len_utf16
+      else
+        @last_line_chars = other.last_line_chars
+        @last_line_len_utf16 = other.last_line_len_utf16
+      end
+
+      @chars += other.chars
+      @len += other.len
+      @len_utf16 += other.len_utf16
+      @lines += other.lines
+    end
+
+    def +(other : TextSummary) : TextSummary
+      result = self
+      result.add!(other)
+      result
+    end
+
+    def ==(other : TextSummary) : Bool
+      @len == other.len &&
+        @chars == other.chars &&
+        @len_utf16 == other.len_utf16 &&
+        @lines == other.lines &&
+        @first_line_chars == other.first_line_chars &&
+        @last_line_chars == other.last_line_chars &&
+        @last_line_len_utf16 == other.last_line_len_utf16 &&
+        @longest_row == other.longest_row &&
+        @longest_row_chars == other.longest_row_chars
+    end
+  end
+end
