@@ -17,6 +17,15 @@ require "./delta_db/patch"
 require "./delta_db/operation_queue"
 require "./delta_db/network"
 require "./delta_db/history"
+require "./delta_db/git_attributes"
+require "./delta_db/file_tree"
+require "./delta_db/fragment_index"
+require "./delta_db/subscription"
+require "./delta_db/file_read_diagnostics"
+require "./delta_db/file_tree_state"
+require "./delta_db/disk_worktree_fs"
+require "./delta_db/client"
+require "./delta_db/history_engine"
 
 # DeltaDB is a Crystal port of Delta's `deltadb` crate (itself a re-consolidation
 # of Zed's `rope`/`text`/`sum_tree` crates plus a Delta-original history engine).

@@ -208,7 +208,7 @@ module DeltaDB
           "SELECT COALESCE(MAX(version_key) + 1, 0) FROM history_versions WHERE history_key = ?",
           key,
         ).as(Int64)
-        batch_id = DeltaBatchId.new(UUID.random, version_key.to_u64)
+        batch_id = DeltaBatchId.new(delta.timeline.uuid, version_key.to_u64)
         version = batch_id.to_s
 
         insert_delta(conn, key, delta)
