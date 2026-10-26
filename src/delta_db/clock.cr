@@ -7,10 +7,10 @@ module DeltaDB
 
     getter value : UInt16
 
-    LOCAL          = ReplicaId.new(0u16)
-    REMOTE_SERVER  = ReplicaId.new(1u16)
-    AGENT          = ReplicaId.new(2u16)
-    LOCAL_BRANCH   = ReplicaId.new(3u16)
+    LOCAL         = ReplicaId.new(0u16)
+    REMOTE_SERVER = ReplicaId.new(1u16)
+    AGENT         = ReplicaId.new(2u16)
+    LOCAL_BRANCH  = ReplicaId.new(3u16)
     # First collaborative replica id; any id >= this is a collaborative replica.
     FIRST_COLLAB_ID = ReplicaId.new(8u16)
 

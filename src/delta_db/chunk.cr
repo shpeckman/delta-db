@@ -12,7 +12,7 @@ module DeltaDB
   # Port of `crates/rope/src/chunk.rs`.
   class Chunk
     MAX_BASE = 128
-    MIN_BASE = 64
+    MIN_BASE =  64
 
     getter chars : UInt128
     getter chars_utf16 : UInt128

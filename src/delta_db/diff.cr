@@ -1,9 +1,9 @@
 module DeltaDB
   # An edit operation in a diff.
   enum DiffOp
-    Equal   # one element present in both sequences
-    Insert  # one element present only in the target
-    Delete  # one element present only in the source
+    Equal  # one element present in both sequences
+    Insert # one element present only in the target
+    Delete # one element present only in the source
   end
 
   # Sequence diffing.
