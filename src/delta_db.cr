@@ -9,6 +9,9 @@ require "./delta_db/eol"
 require "./delta_db/clock"
 require "./delta_db/delta"
 require "./delta_db/storage"
+require "./delta_db/anchor"
+require "./delta_db/diff"
+require "./delta_db/locator"
 
 # DeltaDB is a Crystal port of Delta's `deltadb` crate (itself a re-consolidation
 # of Zed's `rope`/`text`/`sum_tree` crates plus a Delta-original history engine).
