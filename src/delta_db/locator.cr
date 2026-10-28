@@ -44,6 +44,9 @@ module DeltaDB
       loop do
         l = i < lhs.values.size ? lhs.values[i] : 0u64
         r = i < rhs.values.size ? rhs.values[i] : UInt64::MAX
+        if r < l
+          raise ArgumentError.new("locator component bounds are not ordered: #{lhs.values} before #{rhs.values} at #{i}")
+        end
         # `>> 48` keeps the midpoint just above `lhs`, optimizing sequential typing.
         mid = l + ((r - l) >> 48)
         values << mid
