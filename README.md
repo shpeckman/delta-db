@@ -23,6 +23,23 @@ version = DeltaDB::HistoryVersion.from_id(first)
 version.contains?(first) # => true
 ```
 
+## History DAG and checkpoint storage
+
+`HistoryDag` stores batches with parent versions and supports timeline insertion, reset, fork, lineage, epochs, ancestry, reachability, common ancestors, dominators, and merge-base resolution.
+
+```crystal
+dag = DeltaDB::HistoryDag.new(DeltaDB::HistoryId.random)
+timeline = DeltaDB::TimelineId.random
+actor = DeltaDB::ActorUuid.random
+root = DeltaDB::HistoryDeltaBatch.new(DeltaDB::DeltaBatchId.new(timeline.uuid, 1_u64), timeline, actor)
+dag.insert_on_timeline(root)
+forked = dag.fork_timeline(timeline, DeltaDB::TimelineId.random)
+```
+
+`HistoryDag#checkpoint` returns a `HistoryDagSnapshot` containing batches, timelines, epochs, and counters. `HistoryDag.from_snapshot` restores it with dependency ordering. `MergeBaseResolver.merge_base(dag, a, b)` returns the maximal shared ancestor or `nil` when no shared batch exists.
+
+`Storage#save_dag`, `#load_dag`, and `#install_checkpoint` persist DAG state transactionally. `#checkpoint` reads a snapshot, while `#record_checkpoint` and `#checkpoint_version` persist/read a boundary. `pack_deltas` stores multiple payloads in one pack and `delta_value` transparently reads inline, overflow, or packed data. `append_run` and `load_runs` persist run headers and ordered segments. New databases use `Storage::CURRENT_SCHEMA_VERSION`; newer unsupported schemas are rejected.
+
 ## Text CRDT buffers
 
 `TextBuffer` applies local edits, exchanges full-offset operations with replicas, resolves timestamped anchors, and generates/applies undo operations. `BufferSnapshot` exposes visible text, deleted text, fragments, insertion metadata, version state, and causal deferral.
