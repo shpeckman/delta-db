@@ -377,11 +377,12 @@ module DeltaDB
       @undo_map.insert(undo)
       edit_ids = undo.counts.keys
       changed = false
-      @fragments.each do |fragment|
+      @fragments.each_with_index do |fragment, index|
         next unless edit_ids.includes?(fragment.timestamp) || fragment.deletions.any? { |deletion| edit_ids.includes?(deletion) }
 
         fragment.visible = fragment.is_visible(@undo_map)
         fragment.max_undos.observe(undo.timestamp)
+        @fragments[index] = fragment
         changed = true
       end
       rebuild_text if changed
