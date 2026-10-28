@@ -315,7 +315,7 @@ module DeltaDB
       version.encode_version_text(actors)
     end
 
-    private def decode_version_conn(conn : DB::Connection, key : Int64, text : String) : HistoryVersion
+    private def decode_version_conn(conn : DB::Connection | DB::Database, key : Int64, text : String) : HistoryVersion
       actors = Hash(Int64, TimelineId).new
       conn.query("SELECT actor_ordinal, actor FROM history_actors WHERE history_key = ?", key) do |rs|
         rs.each { actors[rs.read(Int64)] = TimelineId.parse(rs.read(String)) }
@@ -323,7 +323,7 @@ module DeltaDB
       HistoryVersion.decode_version_text(text, actors)
     end
 
-    private def timeline_actor_conn(conn : DB::Connection, key : Int64, ordinal : Int64) : TimelineId
+    private def timeline_actor_conn(conn : DB::Connection | DB::Database, key : Int64, ordinal : Int64) : TimelineId
       actor = conn.query_one("SELECT actor FROM history_actors WHERE history_key = ? AND actor_ordinal = ?", key, ordinal) do |rs|
         rs.read(String)
       end
