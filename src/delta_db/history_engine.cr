@@ -239,6 +239,8 @@ module DeltaDB
     end
 
     def common_ancestor(a : HistoryVersion, b : HistoryVersion) : HistoryVersion
+      return a if a == b
+
       left = ancestor_ids(a)
       right = ancestor_ids(b)
       shared = left.select { |id| right.includes?(id) }
