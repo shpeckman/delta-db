@@ -330,6 +330,36 @@ module DeltaDB
       end
     end
 
+    def merge_checkpoint(snapshot : HistoryDagSnapshot) : Nil
+      unless snapshot.history_id == @history_id
+        raise ArgumentError.new("checkpoint history does not match")
+      end
+
+      snapshot.timelines.each do |timeline|
+        if existing = @timelines[timeline.id]?
+          existing.head = existing.head.union(timeline.head)
+          @timelines[timeline.id] = existing
+        else
+          @timelines[timeline.id] = timeline
+        end
+      end
+      pending = snapshot.batches.reject { |batch| @batches.has_key?(batch.id) }
+      until pending.empty?
+        batch = pending.find { |candidate| candidate.parents.ids.all? { |id| @batches.has_key?(id) } }
+        unless batch
+          raise ArgumentError.new("checkpoint contains a missing or cyclic parent")
+        end
+        insert_globally(batch)
+        pending.delete(batch)
+      end
+      snapshot.epochs.each do |epoch|
+        @epochs << epoch unless @epochs.any? { |existing| existing.epoch == epoch.epoch }
+      end
+      @epochs.sort_by!(&.epoch)
+      @max_timestamp = Math.max(@max_timestamp, snapshot.max_timestamp)
+      @epoch_count = Math.max(@epoch_count, snapshot.epoch_count)
+    end
+
     private def validate_version(version : HistoryVersion) : Nil
       version.ids.each do |id|
         unless @batches.has_key?(id)
