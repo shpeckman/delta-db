@@ -35,6 +35,10 @@ module DeltaDB
 
     # A locator strictly between `lhs` and `rhs`.
     def self.between(lhs : Locator, rhs : Locator) : Locator
+      unless lhs < rhs
+        raise ArgumentError.new("locator bounds are not ordered: #{lhs.values} before #{rhs.values}")
+      end
+
       values = [] of UInt64
       i = 0
       loop do
