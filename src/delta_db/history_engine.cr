@@ -339,6 +339,7 @@ module DeltaDB
         raise ArgumentError.new("checkpoint history does not match")
       end
 
+      previous_heads = @timelines.transform_values(&.head)
       snapshot.timelines.each do |timeline|
         @timelines[timeline.id] ||= timeline
       end
