@@ -225,16 +225,20 @@ module DeltaDB
 
     def load_runs(history : HistoryId) : Array(DeltaRun)
       runs = [] of DeltaRun
-      @db.query("SELECT run_actor, run_timestamp FROM history_run_headers WHERE history_key = ? ORDER BY run_actor, run_timestamp", history_key_for(history)) do |rs|
-        rs.each do
-          actor = rs.read(Int64).to_u16
-          timestamp = rs.read(Int64).to_u32
-          replica = ReplicaId.new(actor)
-          ids = [] of DeltaId
-          @db.query("SELECT delta_id FROM history_run_segments WHERE history_key = ? AND run_actor = ? AND run_timestamp = ? ORDER BY segment_index", history_key_for(history), actor, timestamp) do |segments|
-            segments.each { ids << DeltaId.new(UUID.new(segments.read(String))) }
+      @db.transaction do |tx|
+        conn = tx.connection
+        key = history_conn(conn, history)
+        conn.query("SELECT run_actor, run_timestamp FROM history_run_headers WHERE history_key = ? ORDER BY run_actor, run_timestamp", key) do |rs|
+          rs.each do
+            actor = rs.read(Int64).to_u16
+            timestamp = rs.read(Int64).to_u32
+            replica = ReplicaId.new(actor)
+            ids = [] of DeltaId
+            conn.query("SELECT delta_id FROM history_run_segments WHERE history_key = ? AND run_actor = ? AND run_timestamp = ? ORDER BY segment_index", key, actor, timestamp) do |segments|
+              segments.each { ids << DeltaId.new(UUID.new(segments.read(String))) }
+            end
+            runs << DeltaRun.new(replica, Lamport.new(replica, timestamp), ids)
           end
-          runs << DeltaRun.new(replica, Lamport.new(replica, timestamp), ids)
         end
       end
       runs
