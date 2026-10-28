@@ -403,7 +403,7 @@ module DeltaDB
     getter actor_id : ReplicaId
     getter clock : Clock
     getter value : T
-    getter history : HistoryDag
+    property history : HistoryDag
     getter seal_state : SealState
 
     def initialize(@value : T, @actor_id : ReplicaId = ReplicaId::LOCAL, @clock : Clock = Clock.new, history_id : HistoryId = HistoryId.random)

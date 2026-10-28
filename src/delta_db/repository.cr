@@ -59,7 +59,7 @@ module DeltaDB
 
     def self.from_snapshot(snapshot : RepositorySnapshot) : Repository
       repository = Repository.new(snapshot.local_id, snapshot.remote_id, snapshot.history.history_id)
-      repository.replica.instance_variable_set(:@history, HistoryDag.from_snapshot(snapshot.history))
+      repository.replica.history = HistoryDag.from_snapshot(snapshot.history)
       repository.map.restore(snapshot.entries)
       repository.blob_store.restore(snapshot.blobs)
       if version = snapshot.sealed_version
