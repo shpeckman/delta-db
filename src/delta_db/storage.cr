@@ -218,23 +218,29 @@ module DeltaDB
       @db.transaction do |tx|
         conn = tx.connection
         key = history_conn(conn, delta.history)
+        actor_conn(conn, key, delta.actor.value.to_s)
+        timeline_actor = actor_conn(conn, key, delta.timeline.to_s)
         version_key = conn.scalar(
           "SELECT COALESCE(MAX(version_key) + 1, 0) FROM history_versions WHERE history_key = ?",
           key,
         ).as(Int64)
-        batch_id = DeltaBatchId.new(delta.timeline.uuid, version_key.to_u64)
-        version = batch_id.to_s
+        batch_id = DeltaBatchId.new(delta.timeline.uuid, delta.timestamp.value.to_u64)
+        version = HistoryVersion.from_id(batch_id)
+        version_text = version.encode_version_text({delta.timeline.uuid => timeline_actor})
 
         insert_delta(conn, key, delta)
         conn.exec(
           "INSERT INTO history_versions (history_key, version_key, version) VALUES (?, ?, ?)",
-          key, version_key, version,
+          key, version_key, version_text,
         )
         conn.exec(
-          "UPDATE history_timelines SET version = ?, version_key = ? WHERE history_key = ?",
-          version, version_key, key,
+          "INSERT INTO history_timelines (history_key, timeline_actor, timeline_timestamp, version, version_key) " \
+          "VALUES (?, ?, ?, ?, ?) " \
+          "ON CONFLICT(history_key, timeline_actor, timeline_timestamp) " \
+          "DO UPDATE SET version = excluded.version, version_key = excluded.version_key",
+          key, timeline_actor, delta.timeline.generation, version_text, version_key,
         )
-        result = HistoryVersion.new(batch_id)
+        result = version
       end
       result.not_nil!
     end
