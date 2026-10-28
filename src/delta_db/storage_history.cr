@@ -64,66 +64,72 @@ module DeltaDB
     end
 
     def load_dag(history : HistoryId) : HistoryDag
-      key = @db.query_one?("SELECT history_key FROM histories WHERE history_uuid = ?", history.value.bytes.to_slice) do |rs|
-        rs.read(Int64)
-      end
-      return HistoryDag.new(history) unless key
-
-      snapshot = HistoryDagSnapshot.new(history)
-      timelines = [] of HistoryTimeline
-      @db.query("SELECT timeline_actor, timeline_timestamp, version FROM history_timelines WHERE history_key = ?", key) do |rs|
-        rs.each do
-          timeline_actor = rs.read(Int64)
+      result : HistoryDag? = nil
+      @db.transaction do |tx|
+        conn = tx.connection
+        key = conn.query_one?("SELECT history_key FROM histories WHERE history_uuid = ?", history.value.bytes.to_slice) do |rs|
           rs.read(Int64)
-          version = rs.read(String?)
-          id = timeline_actor_conn(@db, key, timeline_actor)
-          head = version ? decode_version_conn(@db, key, version) : HistoryVersion.new
-          origin = head
-          parent : TimelineId? = nil
-          reset_generation = id.generation
-          @db.query_one?("SELECT parent_actor, parent_timestamp, reset_generation, origin FROM history_timeline_metadata WHERE history_key = ? AND timeline_actor = ? AND timeline_timestamp = ?", key, timeline_actor, id.generation) do |metadata|
-            parent_actor = metadata.read(Int64?)
-            metadata.read(Int64?)
-            reset_generation = metadata.read(Int64).to_u32
-            origin_text = metadata.read(String)
-            origin = decode_version_conn(@db, key, origin_text)
-            parent = timeline_actor_conn(@db, key, parent_actor) if parent_actor
+        end
+        if key
+          timelines = [] of HistoryTimeline
+          conn.query("SELECT timeline_actor, timeline_timestamp, version FROM history_timelines WHERE history_key = ?", key) do |rs|
+            rs.each do
+              timeline_actor = rs.read(Int64)
+              rs.read(Int64)
+              version = rs.read(String?)
+              id = timeline_actor_conn(conn, key, timeline_actor)
+              head = version ? decode_version_conn(conn, key, version) : HistoryVersion.new
+              origin = head
+              parent : TimelineId? = nil
+              reset_generation = id.generation
+              conn.query_one?("SELECT parent_actor, parent_timestamp, reset_generation, origin FROM history_timeline_metadata WHERE history_key = ? AND timeline_actor = ? AND timeline_timestamp = ?", key, timeline_actor, id.generation.to_i64) do |metadata|
+                parent_actor = metadata.read(Int64?)
+                metadata.read(Int64?)
+                reset_generation = metadata.read(Int64).to_u32
+                origin_text = metadata.read(String)
+                origin = decode_version_conn(conn, key, origin_text)
+                parent = timeline_actor_conn(conn, key, parent_actor) if parent_actor
+              end
+              timelines << HistoryTimeline.new(id, head, origin, parent, reset_generation)
+            end
           end
-          timelines << HistoryTimeline.new(id, head, origin, parent, reset_generation)
+
+          epochs = [] of HistoryEpoch
+          conn.query("SELECT epoch, start_version FROM history_epochs WHERE history_key = ? ORDER BY epoch", key) do |rs|
+            rs.each { epochs << HistoryEpoch.new(rs.read(Int64).to_u64, decode_version_conn(conn, key, rs.read(String))) }
+          end
+
+          batches = [] of HistoryDeltaBatch
+          conn.query("SELECT actor, timestamp, timeline_actor, timeline_timestamp, delta_actor, epoch, parents FROM history_delta_batches WHERE history_key = ? ORDER BY actor, timestamp", key) do |rs|
+            rs.each do
+              rs.read(Int64)
+              timestamp = rs.read(Int64).to_u64
+              timeline_actor = rs.read(Int64)
+              rs.read(Int64)
+              delta_actor = rs.read(String)
+              epoch = rs.read(Int64).to_u64
+              parents = decode_version_conn(conn, key, rs.read(String))
+              timeline = timeline_actor_conn(conn, key, timeline_actor)
+              batches << HistoryDeltaBatch.new(
+                DeltaBatchId.new(timeline.uuid, timestamp),
+                timeline,
+                ActorUuid.new(UUID.new(delta_actor)),
+                parents,
+                [] of Delta,
+                epoch,
+              )
+            end
+          end
+
+          max_timestamp, epoch_count = conn.query_one("SELECT max_timestamp, epoch_count FROM histories WHERE history_key = ?", key) do |rs|
+            {rs.read(Int64).to_u64, rs.read(Int64).to_u64}
+          end
+          result = HistoryDag.from_snapshot(HistoryDagSnapshot.new(history, batches, timelines, epochs, max_timestamp, epoch_count))
+        else
+          result = HistoryDag.new(history)
         end
       end
-
-      epochs = [] of HistoryEpoch
-      @db.query("SELECT epoch, start_version FROM history_epochs WHERE history_key = ? ORDER BY epoch", key) do |rs|
-        rs.each { epochs << HistoryEpoch.new(rs.read(Int64).to_u64, decode_version_conn(@db, key, rs.read(String))) }
-      end
-
-      batches = [] of HistoryDeltaBatch
-      @db.query("SELECT actor, timestamp, timeline_actor, timeline_timestamp, delta_actor, epoch, parents FROM history_delta_batches WHERE history_key = ? ORDER BY actor, timestamp", key) do |rs|
-        rs.each do
-          actor = rs.read(Int64)
-          timestamp = rs.read(Int64).to_u64
-          timeline_actor = rs.read(Int64)
-          rs.read(Int64)
-          delta_actor = rs.read(String)
-          epoch = rs.read(Int64).to_u64
-          parents = decode_version_conn(@db, key, rs.read(String))
-          timeline = timeline_actor_conn(@db, key, timeline_actor)
-          batches << HistoryDeltaBatch.new(
-            DeltaBatchId.new(timeline.uuid, timestamp),
-            timeline,
-            ActorUuid.new(UUID.new(delta_actor)),
-            parents,
-            [] of Delta,
-            epoch,
-          )
-        end
-      end
-
-      max_timestamp, epoch_count = @db.query_one("SELECT max_timestamp, epoch_count FROM histories WHERE history_key = ?", key) do |rs|
-        {rs.read(Int64).to_u64, rs.read(Int64).to_u64}
-      end
-      HistoryDag.from_snapshot(HistoryDagSnapshot.new(history, batches, timelines, epochs, max_timestamp, epoch_count))
+      result.not_nil!
     end
 
     def checkpoint(history : HistoryId) : HistoryDagSnapshot
