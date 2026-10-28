@@ -1,3 +1,4 @@
+# src/delta_db/storage.cr
 require "sqlite3"
 
 module DeltaDB
@@ -25,7 +26,7 @@ module DeltaDB
   # The schema now matches the real Delta `data.sqlite` (recovered + validated):
   # `histories` (integer `history_key` + `history_uuid` blob), `history_delta_values`
   # keyed by `(history_key, actor, timestamp)`, `history_versions` with a
-  # `version TEXT` (encoded `DeltaBatchId`) + integer `version_key`, `history_actors`,
+  # `version TEXT` (encoded `HistoryVersion`) + integer `version_key`, `history_actors`,
   # plus `app_meta`/`metadata` key-value tables. `WITHOUT ROWID` where the real
   # tables use it.
   class Storage
