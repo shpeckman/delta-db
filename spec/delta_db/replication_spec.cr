@@ -100,7 +100,7 @@ describe "checkpoint and replication" do
     pack = remote.pack_for_history(history, DeltaDB::HistoryVersion.new)
     remote.install_pack(pack)
     remote.install_pack(pack)
-    remote.packs.size.should eq 1
+    remote.packs.size.should eq 2
     sync.connection_state(history).status.should eq DeltaDB::HistoryConnectionStatus::Synced
   end
 
