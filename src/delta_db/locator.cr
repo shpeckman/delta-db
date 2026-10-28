@@ -1,3 +1,4 @@
+# src/delta_db/locator.cr
 module DeltaDB
   # An identifier for a position in an ordered collection, supporting efficient
   # insertion before/after without renumbering (fractional indexing).
