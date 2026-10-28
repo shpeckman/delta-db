@@ -26,6 +26,7 @@ require "./delta_db/file_tree_state"
 require "./delta_db/disk_worktree_fs"
 require "./delta_db/client"
 require "./delta_db/history_engine"
+require "./delta_db/storage_history"
 
 module DeltaDB
   VERSION = {{ `shards version "#{__DIR__}"`.chomp.stringify }}

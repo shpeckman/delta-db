@@ -1,3 +1,4 @@
+# src/delta_db/locator.cr
 module DeltaDB
   # An identifier for a position in an ordered collection, supporting efficient
   # insertion before/after without renumbering (fractional indexing).
@@ -35,13 +36,17 @@ module DeltaDB
 
     # A locator strictly between `lhs` and `rhs`.
     def self.between(lhs : Locator, rhs : Locator) : Locator
+      unless lhs < rhs
+        raise ArgumentError.new("locator bounds are not ordered: #{lhs.values} before #{rhs.values}")
+      end
+
       values = [] of UInt64
       i = 0
       loop do
         l = i < lhs.values.size ? lhs.values[i] : 0u64
         r = i < rhs.values.size ? rhs.values[i] : UInt64::MAX
         # `>> 48` keeps the midpoint just above `lhs`, optimizing sequential typing.
-        mid = l + ((r - l) >> 48)
+        mid = l + ((r > l ? r - l : 0u64) >> 48)
         values << mid
         break if mid > l
         i += 1

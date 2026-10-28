@@ -1,3 +1,4 @@
+# src/delta_db/storage.cr
 require "sqlite3"
 
 module DeltaDB
@@ -25,7 +26,7 @@ module DeltaDB
   # The schema now matches the real Delta `data.sqlite` (recovered + validated):
   # `histories` (integer `history_key` + `history_uuid` blob), `history_delta_values`
   # keyed by `(history_key, actor, timestamp)`, `history_versions` with a
-  # `version TEXT` (encoded `DeltaBatchId`) + integer `version_key`, `history_actors`,
+  # `version TEXT` (encoded `HistoryVersion`) + integer `version_key`, `history_actors`,
   # plus `app_meta`/`metadata` key-value tables. `WITHOUT ROWID` where the real
   # tables use it.
   class Storage
@@ -81,6 +82,7 @@ module DeltaDB
       ].each do |sql|
         @db.exec(sql)
       end
+      migrate_history_dag
     end
 
     # -- app_meta ----------------------------------------------------------
@@ -118,9 +120,22 @@ module DeltaDB
     end
 
     def record_actor(history : HistoryId, actor : ActorUuid) : Nil
-      key = history_key_for(history)
-      ordinal = @db.scalar("SELECT COALESCE(MAX(actor_ordinal) + 1, 0) FROM history_actors WHERE history_key = ?", key).as(Int64)
-      @db.exec("INSERT OR IGNORE INTO history_actors (history_key, actor_ordinal, actor) VALUES (?, ?, ?)", key, ordinal, actor.value.to_s)
+      @db.transaction do |tx|
+        conn = tx.connection
+        key = history_conn(conn, history)
+        actor_conn(conn, key, actor.value.to_s)
+      end
+    end
+
+    private def actor_conn(conn : DB::Connection, key : Int64, actor : String) : Int64
+      existing = conn.query_one?("SELECT actor_ordinal FROM history_actors WHERE history_key = ? AND actor = ?", key, actor) do |rs|
+        rs.read(Int64)
+      end
+      existing || begin
+        ordinal = conn.scalar("SELECT COALESCE(MAX(actor_ordinal) + 1, 0) FROM history_actors WHERE history_key = ?", key).as(Int64)
+        conn.exec("INSERT INTO history_actors (history_key, actor_ordinal, actor) VALUES (?, ?, ?)", key, ordinal, actor)
+        ordinal
+      end
     end
 
     # -- deltas -------------------------------------------------------------
@@ -130,6 +145,7 @@ module DeltaDB
       @db.transaction do |tx|
         conn = tx.connection
         key = history_conn(conn, delta.history)
+        actor_conn(conn, key, delta.actor.value.to_s)
         insert_delta(conn, key, delta)
       end
     end
@@ -172,13 +188,24 @@ module DeltaDB
 
       actor = timestamp.replica_id.value.to_i64
       ts = timestamp.value.to_i64
-      inline = @db.query_one?(
-        "SELECT value FROM history_delta_values WHERE history_key = ? AND actor = ? AND timestamp = ?",
+      row = @db.query_one?(
+        "SELECT value, pack_id, pack_offset, value_len FROM history_delta_values WHERE history_key = ? AND actor = ? AND timestamp = ?",
         key, actor, ts,
       ) do |rs|
-        rs.read(Bytes)
+        {rs.read(Bytes), rs.read(Int64?), rs.read(Int64?), rs.read(Int64?)}
       end
-      return nil unless inline
+      return nil unless row
+
+      inline, pack_id, pack_offset, value_len = row
+      if pack_id
+        packed = @db.query_one?("SELECT data FROM history_delta_value_packs WHERE history_key = ? AND pack_id = ?", key, pack_id) do |rs|
+          rs.read(Bytes)
+        end
+        return nil unless packed
+        offset = (pack_offset || 0i64).to_i32
+        length = (value_len || packed.size).to_i32
+        return packed[offset, length]
+      end
 
       overflow = [] of Bytes
       @db.query(
@@ -204,23 +231,29 @@ module DeltaDB
       @db.transaction do |tx|
         conn = tx.connection
         key = history_conn(conn, delta.history)
+        actor_conn(conn, key, delta.actor.value.to_s)
+        timeline_actor = actor_conn(conn, key, delta.timeline.to_s)
         version_key = conn.scalar(
           "SELECT COALESCE(MAX(version_key) + 1, 0) FROM history_versions WHERE history_key = ?",
           key,
         ).as(Int64)
-        batch_id = DeltaBatchId.new(delta.timeline.uuid, version_key.to_u64)
-        version = batch_id.to_s
+        batch_id = DeltaBatchId.new(delta.timeline.uuid, delta.timestamp.value.to_u64)
+        version = HistoryVersion.from_id(batch_id)
+        version_text = version.encode_version_text({delta.timeline.uuid => timeline_actor})
 
         insert_delta(conn, key, delta)
         conn.exec(
           "INSERT INTO history_versions (history_key, version_key, version) VALUES (?, ?, ?)",
-          key, version_key, version,
+          key, version_key, version_text,
         )
         conn.exec(
-          "UPDATE history_timelines SET version = ?, version_key = ? WHERE history_key = ?",
-          version, version_key, key,
+          "INSERT INTO history_timelines (history_key, timeline_actor, timeline_timestamp, version, version_key) " \
+          "VALUES (?, ?, ?, ?, ?) " \
+          "ON CONFLICT(history_key, timeline_actor, timeline_timestamp) " \
+          "DO UPDATE SET version = excluded.version, version_key = excluded.version_key",
+          key, timeline_actor, delta.timeline.generation, version_text, version_key,
         )
-        result = HistoryVersion.new(batch_id)
+        result = version
       end
       result.not_nil!
     end

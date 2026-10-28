@@ -1,3 +1,4 @@
+# src/delta_db/anchor.cr
 module DeltaDB
   # Bias used to settle ambiguous cursor/anchor positions.
   #
@@ -8,6 +9,14 @@ module DeltaDB
 
     def invert : Bias
       self == Left ? Right : Left
+    end
+
+    def left? : Bool
+      self == Left
+    end
+
+    def right? : Bool
+      self == Right
     end
   end
 

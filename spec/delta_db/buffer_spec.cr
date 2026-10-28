@@ -1,3 +1,4 @@
+# spec/delta_db/buffer_spec.cr
 require "../spec_helper"
 
 describe DeltaDB::Selection do
@@ -64,7 +65,7 @@ describe DeltaDB::BufferSnapshot do
     snapshot = DeltaDB::BufferSnapshot.build("hello world", buffer_id)
 
     ts = DeltaDB::Lamport.new(DeltaDB::ReplicaId::LOCAL, 5u32)
-    op = DeltaDB::EditOperation.new(ts, DeltaDB::Global.new, [6u32..11u32], ["there"])
+    op = DeltaDB::EditOperation.new(ts, snapshot.version.deep_clone, [6u32..11u32], ["there"])
     snapshot.edit([op])
 
     snapshot.text.should eq "hello there"

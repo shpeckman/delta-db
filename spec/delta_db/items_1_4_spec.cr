@@ -1,3 +1,4 @@
+# spec/delta_db/items_1_4_spec.cr
 require "../spec_helper"
 
 describe DeltaDB::Map do
@@ -30,14 +31,14 @@ describe "history engine" do
     run.delta_ids.size.should eq 1
 
     uuid = UUID.random
-    version = DeltaDB::HistoryVersion.new(DeltaDB::DeltaBatchId.new(uuid, 0u64))
+    version = DeltaDB::HistoryVersion.from_id(DeltaDB::DeltaBatchId.new(uuid, 0u64))
     record = DeltaDB::HistoryRecord.new(DeltaDB::HistoryId.random, DeltaDB::TimelineId.random, version)
     record.target_version.should eq version
   end
 
   it "resolves a merge base for identical versions" do
     uuid = UUID.random
-    v = DeltaDB::HistoryVersion.new(DeltaDB::DeltaBatchId.new(uuid, 0u64))
+    v = DeltaDB::HistoryVersion.from_id(DeltaDB::DeltaBatchId.new(uuid, 0u64))
     DeltaDB::MergeBaseResolver.merge_base(v, v).should eq v
   end
 end
