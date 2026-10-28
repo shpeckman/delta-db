@@ -7,7 +7,7 @@ module DeltaDB
   # Recovered from `deltadb::delta` / `deltadb::history` symbols and validated
   # against the real database: UUID-backed newtypes, plus the composite
   # `TimelineId` (uuid + generation) and `DeltaBatchId` (uuid + ordinal), and
-  # `HistoryVersion` (wraps a `DeltaBatchId`, stored as encoded text).
+  # `HistoryVersion` (a sorted, deduplicated set of batch IDs).
 
   macro uuid_id(name)
     struct {{name.id}}
