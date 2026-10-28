@@ -312,9 +312,19 @@ module DeltaDB
       @max_timestamp = snapshot.max_timestamp
       @epoch_count = snapshot.epoch_count
       snapshot.timelines.each { |timeline| @timelines[timeline.id] = timeline }
-      snapshot.batches.sort_by(&.id).each { |batch| insert_globally(batch) }
+      pending = snapshot.batches.dup
+      until pending.empty?
+        batch = pending.find { |candidate| candidate.parents.ids.all? { |id| @batches.has_key?(id) } }
+        unless batch
+          raise ArgumentError.new("checkpoint contains a missing or cyclic parent")
+        end
+        insert_globally(batch)
+        pending.delete(batch)
+      end
       snapshot.timelines.each do |timeline|
-        @timelines[timeline.id].head = timeline.head
+        restored = @timelines[timeline.id]
+        restored.head = timeline.head
+        @timelines[timeline.id] = restored
       end
     end
 
