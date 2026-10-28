@@ -213,7 +213,8 @@ module DeltaDB
     end
 
     def contains_version(version : HistoryVersion, timeline_id : TimelineId) : Bool
-      ancestors(timeline_version(timeline_id)).ids.all? { |id| version.ids.includes?(id) }
+      reachable = ancestor_ids(timeline_version(timeline_id))
+      version.ids.all? { |id| reachable.includes?(id) }
     end
 
     def version_reaches(ancestor : HistoryVersion, descendant : HistoryVersion) : Bool
