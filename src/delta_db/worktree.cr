@@ -119,7 +119,7 @@ module DeltaDB
     end
 
     def read(path : String) : String?
-      required_file(path).text
+      @files[path]?.try(&.text)
     end
 
     def blob(path : String) : BlobRef?

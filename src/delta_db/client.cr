@@ -452,6 +452,9 @@ module DeltaDB
       id = DeltaBatchId.new(delta.timeline.uuid, delta.timestamp.value.to_u64)
       batch = HistoryDeltaBatch.new(id, delta.timeline, delta.actor, parents, [delta])
       @history.insert_on_timeline(batch)
+      if delta.operation.try(&.kind) == ClientOperationKind::Seal
+        @seal_state.seal(@history.timeline_version)
+      end
       batch
     end
   end

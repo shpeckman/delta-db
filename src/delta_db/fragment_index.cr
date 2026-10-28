@@ -82,7 +82,7 @@ module DeltaDB
 
     def self.from_fragments(fragments : Array(Fragment)) : FragmentIndex
       index = FragmentIndex.new
-      fragments.each { |fragment| index.insert(fragment.text, origin: fragment.visible ? LiteralOrigin::Inserted : LiteralOrigin::Original) }
+      fragments.select(&.visible).each { |fragment| index.insert(fragment.text, origin: LiteralOrigin::Inserted) }
       index
     end
 

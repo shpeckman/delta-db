@@ -122,8 +122,8 @@ describe "typed client models" do
     index = DeltaDB::FragmentIndex.new
     record = index.insert("hello world")
     plan = DeltaDB::EditPlan.new(record.id, [
-      DeltaDB::ContentSplice.new(6u32...11u32, "there"),
       DeltaDB::ContentSplice.new(0u32...0u32, ">"),
+      DeltaDB::ContentSplice.new(6u32...11u32, "there"),
     ])
 
     edits = index.apply(plan)
