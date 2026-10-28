@@ -82,6 +82,7 @@ module DeltaDB
       ].each do |sql|
         @db.exec(sql)
       end
+      migrate_history_dag
     end
 
     # -- app_meta ----------------------------------------------------------
