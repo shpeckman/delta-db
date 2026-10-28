@@ -1,3 +1,4 @@
+# src/delta_db/file_tree.cr
 module DeltaDB
   # The kind of a filesystem entry in a worktree.
   #
