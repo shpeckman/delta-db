@@ -103,7 +103,7 @@ module DeltaDB
 
     def resolve(id : FragmentId) : String
       record = @records.fetch(id) { raise ArgumentError.new("missing fragment: #{id}") }
-      span = @aliases.fetch(id).span
+      span = @aliases[id].span
       if span.begin > span.end || span.end > record.text.bytesize
         raise ArgumentError.new("alias span outside fragment: #{id}")
       end
