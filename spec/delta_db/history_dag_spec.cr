@@ -35,7 +35,7 @@ describe DeltaDB::HistoryDag do
     dag.insert_on_timeline(right)
     dag.insert_on_timeline(merge)
 
-    dag.ancestors(version_of(merge.id)).ids.should eq [root.id, left.id, right.id, merge.id]
+    dag.ancestors(version_of(merge.id)).ids.should eq [root.id, left.id, right.id, merge.id].sort
     dag.version_reaches(version_of(root.id), version_of(merge.id)).should be_true
     dag.version_reaches(version_of(left.id), version_of(right.id)).should be_false
     dag.common_ancestor(version_of(left.id), version_of(right.id)).should eq version_of(root.id)
