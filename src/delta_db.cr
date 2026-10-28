@@ -27,11 +27,6 @@ require "./delta_db/disk_worktree_fs"
 require "./delta_db/client"
 require "./delta_db/history_engine"
 
-# DeltaDB is a Crystal port of Delta's `deltadb` crate (itself a re-consolidation
-# of Zed's `rope`/`text`/`sum_tree` crates plus a Delta-original history engine).
-#
-# This file is the text-model slice (Phase 1): the rope chunk + summary primitives
-# that every other layer builds on.
 module DeltaDB
-  VERSION = "0.1.0"
+  VERSION = {{ `shards version "#{__DIR__}"`.chomp.stringify }}
 end
