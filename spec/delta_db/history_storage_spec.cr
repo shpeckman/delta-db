@@ -102,6 +102,26 @@ describe "history DAG storage" do
     runs.first.delta_ids.should eq ids
   end
 
+  it "round-trips timeline reset and fork metadata" do
+    storage = DeltaDB::Storage.in_memory
+    history = DeltaDB::HistoryId.random
+    dag = DeltaDB::HistoryDag.new(history)
+    timeline = storage_timeline(1u64)
+    root = storage_batch(timeline, 1u64)
+    dag.insert_on_timeline(root)
+    forked = dag.fork_timeline(timeline, storage_timeline(2u64))
+    reset = dag.reset_timeline(timeline, storage_version(root.id))
+
+    storage.save_dag(dag)
+    loaded = storage.load_dag(history)
+
+    loaded.timeline_parent_id(forked.id).should eq timeline
+    loaded.timeline_parent_id(reset).should eq timeline
+    loaded.timeline_lineage(reset).should eq [reset, timeline]
+    loaded.timeline_version(forked.id).should eq storage_version(root.id)
+    loaded.timeline_version(reset).should eq storage_version(root.id)
+  end
+
   it "migrates new databases and rejects newer schemas" do
     storage = DeltaDB::Storage.in_memory
     storage.schema_version.should eq DeltaDB::Storage::CURRENT_SCHEMA_VERSION
