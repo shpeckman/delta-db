@@ -28,5 +28,5 @@ require "./delta_db/client"
 require "./delta_db/history_engine"
 
 module DeltaDB
-  VERSION = "0.1.0"
+  VERSION = {{ `shards version "#{__DIR__}"`.chomp.stringify }}
 end
