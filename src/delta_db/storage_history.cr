@@ -153,7 +153,7 @@ module DeltaDB
         max_timestamp = version.ids.max_of?(&.ordinal) || 0u64
         conn.exec(
           "INSERT OR REPLACE INTO history_checkpoint_dag_state (history_key, version, max_timestamp, epoch_count) VALUES (?, ?, ?, ?)",
-          key, text, max_timestamp, 0,
+          key, text, max_timestamp.to_i64, 0,
         )
       end
     end
