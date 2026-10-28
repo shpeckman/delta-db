@@ -240,18 +240,18 @@ module DeltaDB
         start_version, _ = version_row_conn(conn, key, epoch.start_version)
         conn.exec(
           "INSERT OR REPLACE INTO history_epochs (history_key, epoch, start_version) VALUES (?, ?, ?)",
-          key, epoch.epoch, start_version,
+          key, epoch.epoch.to_i64, start_version,
         )
       end
       dag.batches.each_value { |batch| insert_batch_conn(conn, key, batch) }
       conn.exec(
         "UPDATE histories SET max_timestamp = ?, epoch_count = ? WHERE history_key = ?",
-        dag.max_timestamp, dag.epoch_count, key,
+        dag.max_timestamp.to_i64, dag.epoch_count.to_i64, key,
       )
       checkpoint_text = encode_version_conn(conn, key, dag.timeline_version)
       conn.exec(
         "INSERT OR REPLACE INTO history_checkpoint_dag_state (history_key, version, max_timestamp, epoch_count) VALUES (?, ?, ?, ?)",
-        key, checkpoint_text, dag.max_timestamp, dag.epoch_count,
+        key, checkpoint_text, dag.max_timestamp.to_i64, dag.epoch_count.to_i64,
       )
     end
 
@@ -263,15 +263,15 @@ module DeltaDB
       conn.exec(
         "INSERT OR REPLACE INTO history_delta_batches (history_key, actor, timestamp, timeline_actor, timeline_timestamp, delta_actor, epoch, parents) " \
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        key, actor, batch.id.ordinal, timeline_actor, batch.timeline.generation,
-        batch.actor.value.to_s, batch.epoch, parents,
+        key, actor, batch.id.ordinal.to_i64, timeline_actor, batch.timeline.generation.to_i64,
+        batch.actor.value.to_s, batch.epoch.to_i64, parents,
       )
-      conn.exec("DELETE FROM history_delta_batch_parents WHERE history_key = ? AND actor = ? AND timestamp = ?", key, actor, batch.id.ordinal)
+      conn.exec("DELETE FROM history_delta_batch_parents WHERE history_key = ? AND actor = ? AND timestamp = ?", key, actor, batch.id.ordinal.to_i64)
       batch.parents.ids.each do |parent|
         parent_actor = actor_conn(conn, key, parent.uuid.to_s)
         conn.exec(
           "INSERT INTO history_delta_batch_parents (history_key, actor, timestamp, parent_actor, parent_timestamp) VALUES (?, ?, ?, ?, ?)",
-          key, actor, batch.id.ordinal, parent_actor, parent.ordinal,
+          key, actor, batch.id.ordinal.to_i64, parent_actor, parent.ordinal.to_i64,
         )
       end
       batch.deltas.each { |delta| insert_delta(conn, key, delta) }
@@ -284,14 +284,14 @@ module DeltaDB
         "INSERT INTO history_timelines (history_key, timeline_actor, timeline_timestamp, version, version_key) " \
         "VALUES (?, ?, ?, ?, ?) ON CONFLICT(history_key, timeline_actor, timeline_timestamp) " \
         "DO UPDATE SET version = excluded.version, version_key = excluded.version_key",
-        key, timeline_actor, timeline.id.generation, version_text, version_key,
+        key, timeline_actor, timeline.id.generation.to_i64, version_text, version_key,
       )
       parent_actor = timeline.parent.try { |parent| actor_conn(conn, key, parent.to_s) }
       origin_text, _ = version_row_conn(conn, key, timeline.origin)
       conn.exec(
         "INSERT OR REPLACE INTO history_timeline_metadata (history_key, timeline_actor, timeline_timestamp, parent_actor, parent_timestamp, reset_generation, origin) " \
         "VALUES (?, ?, ?, ?, ?, ?, ?)",
-        key, timeline_actor, timeline.id.generation, parent_actor, timeline.parent.try(&.generation), timeline.reset_generation, origin_text,
+        key, timeline_actor, timeline.id.generation.to_i64, parent_actor, timeline.parent.try { |parent| parent.generation.to_i64 }, timeline.reset_generation.to_i64, origin_text,
       )
     end
 
