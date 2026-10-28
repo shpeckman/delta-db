@@ -170,6 +170,7 @@ module DeltaDB
     end
 
     def pack_deltas(history : HistoryId, deltas : Array(Delta)) : Int64
+      result = 0i64
       @db.transaction do |tx|
         conn = tx.connection
         key = history_conn(conn, history)
@@ -191,8 +192,9 @@ module DeltaDB
             Bytes.empty, 1, 0, pack_id, offset, length,
           )
         end
-        pack_id
+        result = pack_id
       end
+      result
     end
 
     def append_run(history : HistoryId, run : DeltaRun) : Nil
