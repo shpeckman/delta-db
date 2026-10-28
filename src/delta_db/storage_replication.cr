@@ -44,15 +44,18 @@ module DeltaDB
 
     def checkpoint_publications : Array(CheckpointPublication)
       publications = [] of CheckpointPublication
-      @db.query("SELECT id, history_key, version, phase, encoded, last_error FROM history_checkpoint_publications ORDER BY id") do |rs|
-        rs.each do
-          id = rs.read(String)
-          key = rs.read(Int64)
-          version = rs.read(String)
-          phase = rs.read(String)
-          encoded = rs.read(String)
-          error = rs.read(String?)
-          publications << CheckpointPublication.new(id, history_for_key(key), decode_version_conn(@db, key, version), encoded, CheckpointPublicationPhase.parse(phase), error)
+      @db.transaction do |tx|
+        conn = tx.connection
+        conn.query("SELECT id, history_key, version, phase, encoded, last_error FROM history_checkpoint_publications ORDER BY id") do |rs|
+          rs.each do
+            id = rs.read(String)
+            key = rs.read(Int64)
+            version = rs.read(String)
+            phase = rs.read(String)
+            encoded = rs.read(String)
+            error = rs.read(String?)
+            publications << CheckpointPublication.new(id, history_for_key(conn, key), decode_version_conn(conn, key, version), encoded, CheckpointPublicationPhase.parse(phase), error)
+          end
         end
       end
       publications
