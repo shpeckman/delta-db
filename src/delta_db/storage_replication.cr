@@ -132,7 +132,7 @@ module DeltaDB
       uuid = @db.query_one("SELECT history_uuid FROM histories WHERE history_key = ?", key) do |rs|
         rs.read(Bytes)
       end
-      HistoryId.new(UUID.new(uuid.to_a))
+      HistoryId.new(UUID.new(uuid))
     end
   end
 end
