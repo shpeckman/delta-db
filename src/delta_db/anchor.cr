@@ -10,6 +10,14 @@ module DeltaDB
     def invert : Bias
       self == Left ? Right : Left
     end
+
+    def left? : Bool
+      self == Left
+    end
+
+    def right? : Bool
+      self == Right
+    end
   end
 
   # Identifies a text buffer.
