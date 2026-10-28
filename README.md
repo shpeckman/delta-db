@@ -40,6 +40,23 @@ forked = dag.fork_timeline(timeline, DeltaDB::TimelineId.random)
 
 `Storage#save_dag`, `#load_dag`, and `#install_checkpoint` persist DAG state transactionally. `#checkpoint` reads a snapshot, while `#record_checkpoint` and `#checkpoint_version` persist/read a boundary. `pack_deltas` stores multiple payloads in one pack and `delta_value` transparently reads inline, overflow, or packed data. `append_run` and `load_runs` persist run headers and ordered segments. New databases use `Storage::CURRENT_SCHEMA_VERSION`; newer unsupported schemas are rejected.
 
+## Client models and repositories
+
+`Map` stores typed register, blob, buffer, nested-map, and worktree entries. `ClientBuffer` wraps the text CRDT engine with anchors, editing, snapshots, and sealing. `ClientOperation` describes typed map/buffer/worktree changes, and `DeltaApplication` applies them. `Replica(T)` applies deltas into a `HistoryDag`, tracks outgoing batches, and enforces sealing.
+
+`BlobStore` content-addresses payloads with SHA-256. `Worktree` applies file deltas, maintains text and blobs, and restores `WorktreeSnapshot` values. `WorktreeText` edits files through client buffers and builds `FragmentIndex` values. `FragmentIndex#apply` executes sorted, non-overlapping `EditPlan` splices.
+
+`Repository` combines a typed map, DAG replica, and blob store. `RepositorySnapshot` preserves all three. `RepositoryStore` manages local/shared repositories, while `Client` applies local/remote batches and drains confirmed outgoing deltas.
+
+```crystal
+client = DeltaDB::Client.new
+repository = client.create_repository
+operation = DeltaDB::ClientOperation.register("status", "ready")
+delta = DeltaDB::Delta.new(repository.history.history_id, DeltaDB::TimelineId.random, DeltaDB::ActorUuid.random, DeltaDB::Lamport.new(DeltaDB::ReplicaId::LOCAL), Bytes.empty, operation)
+client.apply_history_delta(repository, delta)
+repository.map.get("status") # => "ready"
+```
+
 ## Text CRDT buffers
 
 `TextBuffer` applies local edits, exchanges full-offset operations with replicas, resolves timestamped anchors, and generates/applies undo operations. `BufferSnapshot` exposes visible text, deleted text, fragments, insertion metadata, version state, and causal deferral.

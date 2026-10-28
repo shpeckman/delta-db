@@ -1,18 +1,8 @@
+# src/delta_db/fragment_index.cr
 module DeltaDB
-  # Identifier for a text fragment (a UUID-backed newtype).
-  #
-  # Recovered from `deltadb::fragment_index::FragmentId<DeltaId>`; the generic
-  # `DeltaId`/`LocalDeltaId` parameter is elided in this clean-room port.
   uuid_id FragmentId
-
-  # Identifier for a text insertion (a UUID-backed newtype).
-  #
-  # Recovered from `deltadb::text::InsertionId<DeltaId>`.
   uuid_id InsertionId
 
-  # A byte length within a fragment index.
-  #
-  # Clean-room reconstruction of `deltadb::fragment_index::Length`.
   struct Length
     include Comparable(Length)
 
@@ -26,17 +16,11 @@ module DeltaDB
     end
   end
 
-  # Where a fragment's literal text originated.
-  #
-  # Clean-room reconstruction of `deltadb::fragment_index::LiteralOrigin`.
   enum LiteralOrigin
     Original
     Inserted
   end
 
-  # An alias of a fragment over a byte span (for edit planning).
-  #
-  # Clean-room reconstruction of `deltadb::fragment_index::FragmentAlias`.
   struct FragmentAlias
     getter fragment_id : FragmentId
     getter span : Range(UInt32, UInt32)
@@ -45,9 +29,6 @@ module DeltaDB
     end
   end
 
-  # A span over aliased fragments.
-  #
-  # Clean-room reconstruction of `deltadb::fragment_index::AliasSpan`.
   struct AliasSpan
     getter start : UInt32
     getter end : UInt32
@@ -56,9 +37,6 @@ module DeltaDB
     end
   end
 
-  # A splice of content over a byte range.
-  #
-  # Clean-room reconstruction of `deltadb::fragment_index::ContentSplice`.
   struct ContentSplice
     getter range : Range(UInt32, UInt32)
     getter text : String
@@ -67,19 +45,14 @@ module DeltaDB
     end
   end
 
-  # A plan of edits to apply to fragments.
-  #
-  # Clean-room reconstruction of `deltadb::fragment_index::EditPlan`.
   struct EditPlan
+    getter fragment_id : FragmentId
     getter splices : Array(ContentSplice)
 
-    def initialize(@splices : Array(ContentSplice) = [] of ContentSplice)
+    def initialize(@fragment_id : FragmentId, @splices : Array(ContentSplice) = [] of ContentSplice)
     end
   end
 
-  # An edit applied to a specific fragment.
-  #
-  # Clean-room reconstruction of `deltadb::fragment_index::AppliedFragmentEdit`.
   struct AppliedFragmentEdit
     getter fragment_id : FragmentId
     getter range : Range(UInt32, UInt32)
@@ -89,13 +62,87 @@ module DeltaDB
     end
   end
 
-  # Validate that edit ranges are sorted and non-overlapping.
-  #
-  # Clean-room reconstruction of `deltadb::fragment_index::validate_edit_ranges`.
+  class FragmentRecord
+    getter id : FragmentId
+    property text : String
+    getter origin : LiteralOrigin
+
+    def initialize(@id : FragmentId, @text : String, @origin : LiteralOrigin)
+    end
+  end
+
+  class FragmentIndex
+    getter records : Hash(FragmentId, FragmentRecord)
+    getter aliases : Hash(FragmentId, FragmentAlias)
+
+    def initialize
+      @records = {} of FragmentId => FragmentRecord
+      @aliases = {} of FragmentId => FragmentAlias
+    end
+
+    def self.from_fragments(fragments : Array(Fragment)) : FragmentIndex
+      index = FragmentIndex.new
+      fragments.select(&.visible).each { |fragment| index.insert(fragment.text, origin: LiteralOrigin::Inserted) }
+      index
+    end
+
+    def insert(text : String, id : FragmentId = FragmentId.random, origin : LiteralOrigin = LiteralOrigin::Inserted) : FragmentRecord
+      if @records.has_key?(id)
+        raise ArgumentError.new("fragment already exists: #{id}")
+      end
+      record = FragmentRecord.new(id, text, origin)
+      @records[id] = record
+      @aliases[id] = FragmentAlias.new(id, 0u32...text.bytesize.to_u32)
+      record
+    end
+
+    def delete(id : FragmentId) : FragmentRecord?
+      @aliases.delete(id)
+      @records.delete(id)
+    end
+
+    def resolve(id : FragmentId) : String
+      record = @records.fetch(id) { raise ArgumentError.new("missing fragment: #{id}") }
+      span = @aliases[id].span
+      if span.begin > span.end || span.end > record.text.bytesize
+        raise ArgumentError.new("alias span outside fragment: #{id}")
+      end
+      record.text.byte_slice(span.begin.to_i32, (span.end - span.begin).to_i32)
+    end
+
+    def splice(id : FragmentId, range : Range(UInt32, UInt32), text : String) : String
+      record = @records.fetch(id) { raise ArgumentError.new("missing fragment: #{id}") }
+      if range.begin > range.end || range.end > record.text.bytesize
+        raise ArgumentError.new("splice range outside fragment: #{id}")
+      end
+      record.text.byte_slice(0, range.begin.to_i32) + text + record.text.byte_slice(range.end.to_i32)
+    end
+
+    def apply(plan : EditPlan) : Array(AppliedFragmentEdit)
+      ranges = plan.splices.map(&.range)
+      unless DeltaDB.validate_edit_ranges(ranges)
+        raise ArgumentError.new("edit ranges must be sorted and non-overlapping")
+      end
+      unless @records.has_key?(plan.fragment_id)
+        raise ArgumentError.new("missing fragment: #{plan.fragment_id}")
+      end
+
+      plan.splices.reverse_each do |splice|
+        updated = splice(plan.fragment_id, splice.range, splice.text)
+        record = @records[plan.fragment_id]
+        record.text = updated
+        @aliases[plan.fragment_id] = FragmentAlias.new(plan.fragment_id, 0u32...updated.bytesize.to_u32)
+      end
+      plan.splices.map { |splice| AppliedFragmentEdit.new(plan.fragment_id, splice.range, splice.text) }
+    end
+  end
+
   def self.validate_edit_ranges(ranges : Array(Range(UInt32, UInt32))) : Bool
-    sorted = ranges.sort_by(&.begin)
-    (sorted.size - 1).times do |i|
-      return false if sorted[i].end > sorted[i + 1].begin
+    ranges.each_with_index do |range, index|
+      return false if range.end < range.begin
+      if index > 0 && ranges[index - 1].end > range.begin
+        return false
+      end
     end
     true
   end
