@@ -246,7 +246,11 @@ module DeltaDB
         "UPDATE histories SET max_timestamp = ?, epoch_count = ? WHERE history_key = ?",
         dag.max_timestamp, dag.epoch_count, key,
       )
-      record_checkpoint(dag.history_id, dag.timeline_version)
+      checkpoint_text = encode_version_conn(conn, key, dag.timeline_version)
+      conn.exec(
+        "INSERT OR REPLACE INTO history_checkpoint_dag_state (history_key, version, max_timestamp, epoch_count) VALUES (?, ?, ?, ?)",
+        key, checkpoint_text, dag.max_timestamp, dag.epoch_count,
+      )
     end
 
     private def insert_batch_conn(conn : DB::Connection, key : Int64, batch : HistoryDeltaBatch) : Nil
