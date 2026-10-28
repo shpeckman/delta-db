@@ -118,9 +118,22 @@ module DeltaDB
     end
 
     def record_actor(history : HistoryId, actor : ActorUuid) : Nil
-      key = history_key_for(history)
-      ordinal = @db.scalar("SELECT COALESCE(MAX(actor_ordinal) + 1, 0) FROM history_actors WHERE history_key = ?", key).as(Int64)
-      @db.exec("INSERT OR IGNORE INTO history_actors (history_key, actor_ordinal, actor) VALUES (?, ?, ?)", key, ordinal, actor.value.to_s)
+      @db.transaction do |tx|
+        conn = tx.connection
+        key = history_conn(conn, history)
+        actor_conn(conn, key, actor.value.to_s)
+      end
+    end
+
+    private def actor_conn(conn : DB::Connection, key : Int64, actor : String) : Int64
+      existing = conn.query_one?("SELECT actor_ordinal FROM history_actors WHERE history_key = ? AND actor = ?", key, actor) do |rs|
+        rs.read(Int64)
+      end
+      existing || begin
+        ordinal = conn.scalar("SELECT COALESCE(MAX(actor_ordinal) + 1, 0) FROM history_actors WHERE history_key = ?", key).as(Int64)
+        conn.exec("INSERT INTO history_actors (history_key, actor_ordinal, actor) VALUES (?, ?, ?)", key, ordinal, actor)
+        ordinal
+      end
     end
 
     # -- deltas -------------------------------------------------------------
@@ -130,6 +143,7 @@ module DeltaDB
       @db.transaction do |tx|
         conn = tx.connection
         key = history_conn(conn, delta.history)
+        actor_conn(conn, key, delta.actor.value.to_s)
         insert_delta(conn, key, delta)
       end
     end
