@@ -4,7 +4,7 @@
 
 - `src/delta_db.cr`: library entrypoint and version constant.
 - `src/delta_db/`: identity, text, history, client, and storage modules.
-- `spec/delta_db/`: unit and differential specs.
+- `spec/delta_db/`: unit and differential specs; `text_crdt_spec.cr` covers fragments, anchors, undo, and replica convergence.
 - `shard.yml`: Crystal and sqlite3 dependency declarations.
 
 ## Commands
