@@ -98,7 +98,7 @@ describe DeltaDB::Storage do
 
   it "stores and reads schema version" do
     storage = DeltaDB::Storage.in_memory
-    storage.schema_version.should eq 0
+    storage.schema_version.should eq DeltaDB::Storage::CURRENT_SCHEMA_VERSION
     storage.schema_version = 3
     storage.schema_version.should eq 3
   end
