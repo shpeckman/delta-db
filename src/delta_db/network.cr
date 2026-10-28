@@ -1,12 +1,17 @@
+# src/delta_db/network.cr
 module DeltaDB
-  # A message-passing network between replicas, used to test CRDT convergence.
-  #
-  # Port of `crates/text/src/network.rs` `Network<T>`. The upstream uses an RNG
-  # to inject duplicate/out-of-order delivery; here delivery is ordered and
-  # duplicate-free (a clean-room simplification).
   class Network(T)
     @inboxes = Hash(ReplicaId, Array(T)).new
     @disconnected = Set(ReplicaId).new
+    @random : Random
+
+    def initialize
+      @random = Random.new
+    end
+
+    def initialize(seed : UInt64)
+      @random = Random.new(seed)
+    end
 
     def add_peer(id : ReplicaId) : Nil
       @inboxes[id] = [] of T
@@ -38,7 +43,11 @@ module DeltaDB
       return if @disconnected.includes?(sender)
       @inboxes.each do |replica, inbox|
         next if replica == sender || @disconnected.includes?(replica)
-        messages.each { |message| inbox << message }
+        messages.each do |message|
+          @random.rand(1..3).times do
+            inbox.insert(@random.rand(inbox.size + 1), message)
+          end
+        end
       end
     end
 
@@ -48,9 +57,7 @@ module DeltaDB
 
     def receive(receiver : ReplicaId) : Array(T)
       inbox = @inboxes[receiver]? || [] of T
-      received = inbox.dup
-      inbox.clear
-      received
+      inbox.shift(@random.rand(inbox.size + 1))
     end
   end
 end
