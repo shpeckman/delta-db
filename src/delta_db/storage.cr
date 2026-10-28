@@ -159,8 +159,8 @@ module DeltaDB
       if value.size > OVERFLOW_THRESHOLD
         inline = value[0, OVERFLOW_THRESHOLD]
         conn.exec(
-          "INSERT INTO history_delta_values (history_key, actor, timestamp, value, chunk_count, schema_version) VALUES (?, ?, ?, ?, ?, ?)",
-          key, actor, timestamp, inline, 1 + (value.size - OVERFLOW_THRESHOLD - 1) / OVERFLOW_THRESHOLD + 1, 0,
+          "INSERT INTO history_delta_values (history_key, actor, timestamp, value, chunk_count, schema_version, value_len) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          key, actor, timestamp, inline, 1 + (value.size - OVERFLOW_THRESHOLD - 1) / OVERFLOW_THRESHOLD + 1, 0, value.size,
         )
         chunk_index = 0
         offset = OVERFLOW_THRESHOLD
@@ -174,9 +174,10 @@ module DeltaDB
           offset += OVERFLOW_THRESHOLD
         end
       else
+        inline = value.empty? ? Bytes[0u8] : value
         conn.exec(
-          "INSERT INTO history_delta_values (history_key, actor, timestamp, value, chunk_count, schema_version) VALUES (?, ?, ?, ?, ?, ?)",
-          key, actor, timestamp, value, 1, 0,
+          "INSERT INTO history_delta_values (history_key, actor, timestamp, value, chunk_count, schema_version, value_len) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          key, actor, timestamp, inline, 1, 0, value.size,
         )
       end
     end
