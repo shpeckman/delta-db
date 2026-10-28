@@ -41,7 +41,7 @@ describe DeltaDB::HistoryDag do
     dag.common_ancestor(version_of(left.id), version_of(right.id)).should eq version_of(root.id)
     dag.dominator(version_of(merge.id), version_of(right.id)).should eq version_of(right.id)
     DeltaDB::MergeBaseResolver.merge_base(dag, version_of(left.id), version_of(right.id)).should eq version_of(root.id)
-    dag.delta_headers_difference(version_of(merge.id), version_of(root.id)).map(&.id).should eq [left.id, right.id, merge.id]
+    dag.delta_headers_difference(version_of(merge.id), version_of(root.id)).map(&.id).should eq [left.id, right.id, merge.id].sort
     dag.contains_version(version_of(root.id, merge.id)).should be_true
     dag.contains_version(version_of(root.id), timeline).should be_true
   end

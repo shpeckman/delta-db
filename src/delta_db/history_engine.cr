@@ -151,7 +151,7 @@ module DeltaDB
 
       @batches[batch.id] = batch
       @max_timestamp = Math.max(@max_timestamp, batch.id.ordinal)
-      @epoch_count = Math.max(@epoch_count, batch.epoch + 1u64)
+      @epoch_count = Math.max(@epoch_count, batch.epoch)
       timeline = @timelines[batch.timeline]
       timeline.head = timeline.head.union(HistoryVersion.from_id(batch.id))
       @timelines[batch.timeline] = timeline
