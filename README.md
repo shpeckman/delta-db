@@ -89,6 +89,23 @@ delta = DeltaDB::Delta.new(history, timeline, actor, clock.tick, "value".to_slic
 version = storage.append_delta(delta)
 ```
 
+## Checkpoints and replication
+
+`CheckpointCodec` encodes `HistoryDagSnapshot` in a versioned JSON envelope with Base64 delta payloads. `CheckpointPublisher` manages prepared, published, installed, and failed phases. `ReplicationPacker` creates sealed checkpoint packs and `ReplicationPackCodec` round-trips them. `ReplicationOutbox` persists pending, failed, and acknowledged packs with retry support.
+
+`RemoteSync` pushes and pulls checkpoints through `RemotePeer`, an in-memory remote transport used for deterministic protocol and recovery tests. It supports divergent-history merge, timeline reset/fork, duplicate-pack suppression, and persisted `HistoryConnectionState`. It is not an implementation of Delta's production network service.
+
+```crystal
+remote = DeltaDB::RemotePeer.new
+storage = DeltaDB::Storage.in_memory
+sync = DeltaDB::RemoteSync.new(storage, remote)
+sync.push_history(dag)
+sync.pull_history(dag)
+state = sync.connection_state(dag.history_id)
+```
+
+Checkpoint publication, outbox, and connection state use schema version 3. `checkpoint_publication(s)`, `replication_outbox_entries`, and `load_history_connection_state` recover durable state.
+
 ## Populated Delta differential test
 
 Set `DELTA_DB_REFERENCE_DATABASE` to a genuine populated Delta `data.sqlite`. The differential spec opens it read-only and decodes/re-encodes every row in `history_versions` using that history's actor mappings.
