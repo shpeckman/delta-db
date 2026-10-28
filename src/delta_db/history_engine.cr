@@ -158,7 +158,7 @@ module DeltaDB
 
     def insert_on_timeline(batch : HistoryDeltaBatch) : Nil
       timeline = @timelines[batch.timeline]? || create_timeline(batch.timeline, batch.parents)
-      unless contains_version(batch.parents, timeline.head)
+      unless version_reaches(timeline.head, batch.parents)
         raise ArgumentError.new("batch does not extend timeline head: #{batch.timeline}")
       end
 
