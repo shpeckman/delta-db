@@ -75,7 +75,7 @@ describe "typed client models" do
     replica.apply_history_delta(client_delta(history_id, timeline, actor, next_timestamp(clock), DeltaDB::ClientOperation.seal))
     replica.sealed?.should be_true
     expect_raises(Exception) do
-      replica.apply_history_delta(client_delta(history_id, timeline, actor, next_timestamp(clock), DeltaDB::ClientOperation.register("blocked", "yes"))
+      replica.apply_history_delta(client_delta(history_id, timeline, actor, next_timestamp(clock), DeltaDB::ClientOperation.register("blocked", "yes")))
     end
   end
 
