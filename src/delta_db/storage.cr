@@ -209,6 +209,7 @@ module DeltaDB
         length = (value_len || packed.size).to_i32
         return packed[offset, length]
       end
+      return Bytes.empty if value_len == 0
 
       overflow = [] of Bytes
       @db.query(
