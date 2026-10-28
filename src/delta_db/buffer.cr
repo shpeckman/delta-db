@@ -526,7 +526,7 @@ module DeltaDB
     end
   end
 
-  class Buffer
+  class TextBuffer
     getter snapshot : BufferSnapshot
     getter history : History
     getter lamport_clock : Clock
