@@ -189,7 +189,7 @@ module DeltaDB
             "INSERT OR REPLACE INTO history_delta_values (history_key, actor, timestamp, value, chunk_count, schema_version, pack_id, pack_offset, value_len) " \
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             key, delta.timestamp.replica_id.value.to_i64, delta.timestamp.value.to_i64,
-            Bytes.empty, 1, 0, pack_id, offset, length,
+            Bytes[0u8], 1, 0, pack_id, offset, length,
           )
         end
         result = pack_id
