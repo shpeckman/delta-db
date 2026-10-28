@@ -84,4 +84,6 @@ module DeltaDB
     def initialize(@path : String, @target : String)
     end
   end
+
+  alias FileDelta = CreateFileDelta | EditFileDelta | DeleteDelta | RenameDelta | SetModeDelta | SetLineEndingsDelta | CreateDirDelta | CreateSymlinkDelta
 end
