@@ -72,7 +72,7 @@ module DeltaDB
       @head : HistoryVersion = HistoryVersion.new,
       @origin : HistoryVersion = HistoryVersion.new,
       @parent : TimelineId? = nil,
-      @reset_generation : UInt32 = @id.generation,
+      @reset_generation : UInt32 = id.generation,
     )
     end
   end
