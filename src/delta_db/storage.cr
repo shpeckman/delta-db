@@ -188,13 +188,24 @@ module DeltaDB
 
       actor = timestamp.replica_id.value.to_i64
       ts = timestamp.value.to_i64
-      inline = @db.query_one?(
-        "SELECT value FROM history_delta_values WHERE history_key = ? AND actor = ? AND timestamp = ?",
+      row = @db.query_one?(
+        "SELECT value, pack_id, pack_offset, value_len FROM history_delta_values WHERE history_key = ? AND actor = ? AND timestamp = ?",
         key, actor, ts,
       ) do |rs|
-        rs.read(Bytes)
+        {rs.read(Bytes), rs.read(Int64?), rs.read(Int64?), rs.read(Int64?)}
       end
-      return nil unless inline
+      return nil unless row
+
+      inline, pack_id, pack_offset, value_len = row
+      if pack_id
+        packed = @db.query_one?("SELECT data FROM history_delta_value_packs WHERE history_key = ? AND pack_id = ?", key, pack_id) do |rs|
+          rs.read(Bytes)
+        end
+        return nil unless packed
+        offset = (pack_offset || 0i64).to_i32
+        length = (value_len || packed.size).to_i32
+        return packed[offset, length]
+      end
 
       overflow = [] of Bytes
       @db.query(
