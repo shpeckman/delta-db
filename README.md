@@ -23,6 +23,22 @@ version = DeltaDB::HistoryVersion.from_id(first)
 version.contains?(first) # => true
 ```
 
+## Text CRDT buffers
+
+`TextBuffer` applies local edits, exchanges full-offset operations with replicas, resolves timestamped anchors, and generates/applies undo operations. `BufferSnapshot` exposes visible text, deleted text, fragments, insertion metadata, version state, and causal deferral.
+
+```crystal
+buffer = DeltaDB::TextBuffer.new(DeltaDB::ReplicaId::LOCAL, DeltaDB::BufferId.new(1_u64), "abc")
+operation = buffer.edit([{1...2, "X"}])
+buffer.text # => "aXc"
+
+anchor = buffer.anchor_before(2)
+buffer.undo
+buffer.text # => "abc"
+```
+
+Remote operations carry the sender's causal `version`. Operations arriving before their dependencies remain deferred. Duplicate timestamps are applied once. `Network(T)` provides seeded duplicate/out-of-order delivery for convergence testing. `check_invariants` verifies fragment ordering, text lengths, and visible/deleted rope consistency.
+
 ## SQLite storage
 
 `Storage.in_memory` creates an isolated database. `Storage.open(path)` opens a file-backed database. `insert_delta` stores a delta and registers its actor. `append_delta` additionally registers the timeline, writes a version, and advances only that timeline's head.
