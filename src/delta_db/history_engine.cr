@@ -340,12 +340,7 @@ module DeltaDB
       end
 
       snapshot.timelines.each do |timeline|
-        if existing = @timelines[timeline.id]?
-          existing.head = existing.head.union(timeline.head)
-          @timelines[timeline.id] = existing
-        else
-          @timelines[timeline.id] = timeline
-        end
+        @timelines[timeline.id] ||= timeline
       end
       pending = snapshot.batches.reject { |batch| @batches.has_key?(batch.id) }
       until pending.empty?
@@ -355,6 +350,11 @@ module DeltaDB
         end
         insert_globally(batch)
         pending.delete(batch)
+      end
+      snapshot.timelines.each do |timeline|
+        existing = @timelines[timeline.id]
+        existing.head = existing.head.union(timeline.head)
+        @timelines[timeline.id] = existing
       end
       snapshot.epochs.each do |epoch|
         @epochs << epoch unless @epochs.any? { |existing| existing.epoch == epoch.epoch }
