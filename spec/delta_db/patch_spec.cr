@@ -75,7 +75,9 @@ describe DeltaDB::Network do
     net.has_unreceived?(a).should be_false
     net.has_unreceived?(b).should be_true
     received = [] of String
-    received.concat(net.receive(b)) until net.idle?
+    until net.idle?
+      received.concat(net.receive(b))
+    end
     received.should contain "hi"
     received.should contain "there"
   end
