@@ -95,14 +95,11 @@ module DeltaDB
   #
   # Port of `crates/clock/src/clock.rs` `Global`.
   class Global
-    def initialize
-      @values = [] of UInt32
+    def initialize(@values : Array(UInt32) = [] of UInt32)
     end
 
     def deep_clone : Global
-      copy = Global.new
-      copy.@values = @values.dup
-      copy
+      Global.new(@values.dup)
     end
 
     def get(replica_id : ReplicaId) : UInt32
