@@ -354,7 +354,8 @@ module DeltaDB
       end
       snapshot.timelines.each do |timeline|
         existing = @timelines[timeline.id]
-        existing.head = existing.head.union(timeline.head)
+        previous = previous_heads[timeline.id]?
+        existing.head = previous ? previous.union(timeline.head) : timeline.head
         @timelines[timeline.id] = existing
       end
       snapshot.epochs.each do |epoch|
