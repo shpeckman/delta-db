@@ -99,6 +99,12 @@ module DeltaDB
       @values = [] of UInt32
     end
 
+    def deep_clone : Global
+      copy = Global.new
+      copy.@values = @values.dup
+      copy
+    end
+
     def get(replica_id : ReplicaId) : UInt32
       @values[replica_id.value.to_i32]? || 0u32
     end

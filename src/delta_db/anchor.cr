@@ -1,3 +1,4 @@
+# src/delta_db/anchor.cr
 module DeltaDB
   # Bias used to settle ambiguous cursor/anchor positions.
   #
