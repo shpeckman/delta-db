@@ -154,6 +154,7 @@ module DeltaDB
       @epoch_count = Math.max(@epoch_count, batch.epoch + 1u64)
       timeline = @timelines[batch.timeline]
       timeline.head = timeline.head.union(HistoryVersion.from_id(batch.id))
+      @timelines[batch.timeline] = timeline
     end
 
     def insert_on_timeline(batch : HistoryDeltaBatch) : Nil
@@ -164,6 +165,7 @@ module DeltaDB
 
       insert_globally(batch)
       timeline.head = HistoryVersion.from_id(batch.id)
+      @timelines[batch.timeline] = timeline
     end
 
     def advance_timeline(batch : HistoryDeltaBatch) : Nil
