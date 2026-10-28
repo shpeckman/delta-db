@@ -29,6 +29,9 @@ require "./delta_db/history_engine"
 require "./delta_db/storage_history"
 require "./delta_db/worktree"
 require "./delta_db/repository"
+require "./delta_db/checkpoint"
+require "./delta_db/replication"
+require "./delta_db/storage_replication"
 
 module DeltaDB
   VERSION = {{ `shards version "#{__DIR__}"`.chomp.stringify }}

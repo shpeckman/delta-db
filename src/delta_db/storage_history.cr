@@ -1,7 +1,7 @@
 # src/delta_db/storage_history.cr
 module DeltaDB
   class Storage
-    CURRENT_SCHEMA_VERSION = 2
+    CURRENT_SCHEMA_VERSION = 3
 
     private def migrate_history_dag : Nil
       current = schema_version
