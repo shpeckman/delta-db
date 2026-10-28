@@ -39,7 +39,7 @@ module DeltaDB
       end
       return nil unless row
       key, version, phase, encoded, error = row
-      CheckpointPublication.new(id, history_for_key(key), decode_version_conn(@db, key, version), encoded, CheckpointPublicationPhase.parse(phase), error)
+      CheckpointPublication.new(id, history_for_key(@db, key), decode_version_conn(@db, key, version), encoded, CheckpointPublicationPhase.parse(phase), error)
     end
 
     def checkpoint_publications : Array(CheckpointPublication)
