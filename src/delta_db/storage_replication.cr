@@ -131,8 +131,8 @@ module DeltaDB
       ReplicationOutboxEntry.new(ReplicationPackCodec.decode(rs.read(String)), ReplicationOutboxState.parse(rs.read(String)), rs.read(String?))
     end
 
-    private def history_for_key(key : Int64) : HistoryId
-      uuid = @db.query_one("SELECT history_uuid FROM histories WHERE history_key = ?", key) do |rs|
+    private def history_for_key(conn : DB::Connection | DB::Database, key : Int64) : HistoryId
+      uuid = conn.query_one("SELECT history_uuid FROM histories WHERE history_key = ?", key) do |rs|
         rs.read(Bytes)
       end
       HistoryId.new(UUID.new(uuid))
