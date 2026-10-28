@@ -42,6 +42,7 @@ module DeltaDB
       ].each do |sql|
         @db.exec(sql)
       end
+      migrate_replication
       self.schema_version = CURRENT_SCHEMA_VERSION if current < CURRENT_SCHEMA_VERSION
     end
 
