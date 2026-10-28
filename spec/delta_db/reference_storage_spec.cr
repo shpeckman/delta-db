@@ -39,7 +39,7 @@ if reference_path = ENV["DELTA_DB_REFERENCE_DATABASE"]?
         versions.empty?.should be_false
 
         versions.each do |history_key, text|
-          by_uuid, by_ordinal = maps.fetch(history_key)
+          by_uuid, by_ordinal = maps[history_key]
           version = DeltaDB::HistoryVersion.decode_version_text(text, by_ordinal)
           version.encode_version_text(by_uuid).should eq text
         end
