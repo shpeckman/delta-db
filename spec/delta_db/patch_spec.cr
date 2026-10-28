@@ -64,7 +64,7 @@ end
 
 describe DeltaDB::Network do
   it "broadcasts and receives messages" do
-    net = DeltaDB::Network(String).new
+    net = DeltaDB::Network(String).new(42u64)
     a = DeltaDB::ReplicaId.new(0u16)
     b = DeltaDB::ReplicaId.new(1u16)
     net.add_peer(a)
@@ -73,8 +73,10 @@ describe DeltaDB::Network do
     net.broadcast(a, ["hi", "there"])
     net.has_unreceived?(a).should be_false
     net.has_unreceived?(b).should be_true
-    net.receive(b).should eq ["hi", "there"]
-    net.idle?.should be_true
+    received = [] of String
+    received.concat(net.receive(b)) until net.idle?
+    received.should contain "hi"
+    received.should contain "there"
   end
 
   it "drops broadcasts from disconnected peers" do
