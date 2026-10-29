@@ -1,4 +1,5 @@
 # spec/delta_db/client_models_spec.cr
+require "file_utils"
 require "../spec_helper"
 
 private def client_delta(history : DeltaDB::HistoryId, timeline : DeltaDB::TimelineId, actor : DeltaDB::ActorUuid, timestamp : DeltaDB::Lamport, operation : DeltaDB::ClientOperation) : DeltaDB::Delta
@@ -149,6 +150,48 @@ describe "typed client models" do
     restored = DeltaDB::Blob::Store.new
     restored.restore(snapshot)
     first.resolve(restored).should eq "same".to_slice
+  end
+
+  it "persists disk blobs and reads them through read-only mappings" do
+    root = File.tempname("delta-db-blobs")
+    begin
+      store = DeltaDB::Blob::Store.open(root)
+      ref = store.put("mapped".to_slice)
+      empty = store.put(Bytes.empty)
+      store.put("mapped".to_slice).digest.should eq ref.digest
+
+      ref.read(store) { |bytes| bytes.read_only?.should be_true; String.new(bytes) }.should eq "mapped"
+      empty.resolve(store).should eq Bytes.empty
+      store.get(ref).read_only?.should be_false
+
+      reopened = DeltaDB::Blob::Store.open(root)
+      reopened.contains?(ref).should be_true
+      ref.resolve(reopened).should eq "mapped".to_slice
+      reopened.snapshot.keys.sort.should eq [ref.digest, empty.digest].sort
+
+      extra = DeltaDB::Blob::Store.new.put("extra".to_slice)
+      reopened.restore({extra.digest => "extra".to_slice})
+      reopened.contains?(ref).should be_false
+      extra.resolve(reopened).should eq "extra".to_slice
+      expect_raises(DeltaDB::MissingBlobError) { ref.resolve(reopened) }
+      expect_raises(DeltaDB::MissingBlobError) { DeltaDB::Blob::Ref.new(ref.digest, 6u64, false).read(store) { } }
+    ensure
+      FileUtils.rm_rf(root)
+    end
+  end
+
+  it "backs repositories with disk blob stores" do
+    root = File.tempname("delta-db-blobs")
+    begin
+      client = DeltaDB::Client.new
+      repository = client.create_repository(blob_store: DeltaDB::Blob::Store.open(root))
+      blob = repository.blob_store.put("blob".to_slice)
+      restored = DeltaDB::Repository.from_snapshot(repository.snapshot, DeltaDB::Blob::Store.open(root))
+      blob.resolve(restored.blob_store).should eq "blob".to_slice
+      restored.blob_store.backend.should be_a(DeltaDB::Blob::Store::Disk)
+    ensure
+      FileUtils.rm_rf(root)
+    end
   end
 
   it "synchronizes repositories and restores full snapshots" do
