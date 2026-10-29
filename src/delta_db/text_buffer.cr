@@ -98,8 +98,8 @@ module DeltaDB
       @snapshot.anchor_after(offset)
     end
 
-    def deferred_ops_len : Int32
-      @snapshot.deferred_ops_len
+    def deferred_ops_count : Int32
+      @snapshot.deferred_ops_count
     end
 
     def check_invariants : Nil

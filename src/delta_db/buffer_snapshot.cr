@@ -114,7 +114,7 @@ module DeltaDB
       apply_ops(ops.map { |op| op.as(Operation) })
     end
 
-    def deferred_ops_len : Int32
+    def deferred_ops_count : Int32
       @pending_ops.size
     end
 

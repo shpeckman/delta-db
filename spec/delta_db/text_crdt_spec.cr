@@ -122,17 +122,17 @@ describe DeltaDB::TextBuffer do
 
     two.apply(second)
     two.text.should eq "abc"
-    two.deferred_ops_len.should eq 1
+    two.deferred_ops_count.should eq 1
     two.apply(first)
     two.text.should eq one.text
-    two.deferred_ops_len.should eq 0
+    two.deferred_ops_count.should eq 0
     undo = one.undo.not_nil!
     three = new_buffer(3u16, "abc")
     three.apply(undo)
-    three.deferred_ops_len.should eq 1
+    three.deferred_ops_count.should eq 1
     three.apply_ops([second, first])
     three.text.should eq "aXc"
-    three.deferred_ops_len.should eq 0
+    three.deferred_ops_count.should eq 0
     three.check_invariants
   end
 

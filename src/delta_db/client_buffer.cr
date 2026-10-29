@@ -16,10 +16,6 @@ module DeltaDB
       @seal_state = SealState.new
     end
 
-    def self.new_file(buffer_id : BufferId, replica_id : ReplicaId = ReplicaId::LOCAL, text : String = "") : ClientBuffer
-      ClientBuffer.new(buffer_id, replica_id, text)
-    end
-
     def fragments : Array(Fragment)
       @text_buffer.snapshot.fragments
     end
