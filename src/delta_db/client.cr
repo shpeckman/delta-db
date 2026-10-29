@@ -16,8 +16,8 @@ module DeltaDB
       LocalRepositoryId.random
     end
 
-    def create_repository(local_id : LocalRepositoryId = new_local_repository_id, remote_id : RemoteRepositoryId? = nil) : Repository
-      repository = @store.create(local_id, remote_id, new_history_id)
+    def create_repository(local_id : LocalRepositoryId = new_local_repository_id, remote_id : RemoteRepositoryId? = nil, blob_store : Blob::Store = Blob::Store.new) : Repository
+      repository = @store.create(local_id, remote_id, new_history_id, blob_store)
       repository
     end
 
@@ -25,8 +25,8 @@ module DeltaDB
       @store.get(id) || raise NotFoundError.new("missing repository: #{id}")
     end
 
-    def open_shared_repository(remote_id : RemoteRepositoryId) : Repository
-      @store.open_shared(remote_id)
+    def open_shared_repository(remote_id : RemoteRepositoryId, blob_store : Blob::Store = Blob::Store.new) : Repository
+      @store.open_shared(remote_id, blob_store: blob_store)
     end
 
     def apply_history_delta(repository : Repository, delta : Delta) : History::Batch

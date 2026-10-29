@@ -10,8 +10,17 @@ module DeltaDB
       end
 
       def resolve(store : Store) : Bytes
-        raise MissingBlobError.new("blob is unavailable: #{@digest}") unless @available
+        ensure_available!
         store.get(self)
+      end
+
+      def read(store : Store, & : Bytes -> T) : T forall T
+        ensure_available!
+        store.read(self) { |bytes| yield bytes }
+      end
+
+      private def ensure_available! : Nil
+        raise MissingBlobError.new("blob is unavailable: #{@digest}") unless @available
       end
     end
   end

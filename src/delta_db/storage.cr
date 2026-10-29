@@ -4,6 +4,7 @@ require "sqlite3"
 module DeltaDB
   class Storage
     OVERFLOW_THRESHOLD = 16
+    DEFAULT_MMAP_SIZE  = 256_i64 << 20
 
     getter db : DB::Database
 
@@ -11,8 +12,11 @@ module DeltaDB
       migrate
     end
 
-    def self.open(path : String) : Storage
-      Storage.new(DB.open("sqlite3://#{path}"))
+    def self.open(path : String, mmap_size : Int64 = DEFAULT_MMAP_SIZE) : Storage
+      raise ArgumentError.new("mmap_size must be non-negative: #{mmap_size}") if mmap_size.negative?
+      db = DB.open("sqlite3://#{path}")
+      db.setup_connection { |conn| conn.exec("PRAGMA mmap_size = #{mmap_size}") }
+      Storage.new(db)
     end
 
     def self.in_memory : Storage
@@ -21,6 +25,10 @@ module DeltaDB
 
     def close : Nil
       @db.close
+    end
+
+    def mmap_size : Int64
+      @db.scalar("PRAGMA mmap_size").as(Int64)
     end
 
     private def migrate : Nil
@@ -144,14 +152,18 @@ module DeltaDB
     end
 
     def delta_value(history : HistoryId, timestamp : Lamport) : Bytes?
-      key = @db.query_one?("SELECT history_key FROM histories WHERE history_uuid = ?", history.value.bytes.to_slice) do |rs|
+      @db.using_connection { |conn| delta_value_conn(conn, history, timestamp) }
+    end
+
+    private def delta_value_conn(conn : DB::Connection, history : HistoryId, timestamp : Lamport) : Bytes?
+      key = conn.query_one?("SELECT history_key FROM histories WHERE history_uuid = ?", history.value.bytes.to_slice) do |rs|
         rs.read(Int64)
       end
       return nil unless key
 
       actor = timestamp.replica_id.value.to_i64
       ts = timestamp.value.to_i64
-      row = @db.query_one?(
+      row = conn.query_one?(
         "SELECT value, pack_id, pack_offset, value_len FROM history_delta_values WHERE history_key = ? AND actor = ? AND timestamp = ?",
         key, actor, ts,
       ) do |rs|
@@ -160,19 +172,11 @@ module DeltaDB
       return nil unless row
 
       inline, pack_id, pack_offset, value_len = row
-      if pack_id
-        packed = @db.query_one?("SELECT data FROM history_delta_value_packs WHERE history_key = ? AND pack_id = ?", key, pack_id) do |rs|
-          rs.read(Bytes)
-        end
-        return nil unless packed
-        offset = (pack_offset || 0i64).to_i32
-        length = (value_len || packed.size).to_i32
-        return packed[offset, length]
-      end
+      return read_pack_slice(conn, pack_id, (pack_offset || 0i64).to_i32, value_len.try(&.to_i32)) if pack_id
       return Bytes.empty if value_len == 0
 
       overflow = [] of Bytes
-      @db.query(
+      conn.query(
         "SELECT data FROM history_delta_value_overflow_chunks WHERE history_key = ? AND actor = ? AND timestamp = ? ORDER BY chunk_index",
         key, actor, ts,
       ) do |rs|
@@ -185,6 +189,19 @@ module DeltaDB
       io.write(inline)
       overflow.each { |chunk| io.write(chunk) }
       io.to_slice
+    end
+
+    private def read_pack_slice(conn : DB::Connection, pack_id : Int64, offset : Int32, length : Int32?) : Bytes?
+      handle = conn.as(SQLite3::Connection).to_unsafe
+      return nil unless LibSQLite3Blob.open(handle, "main", "history_delta_value_packs", "data", pack_id, 0, out blob) == 0
+      begin
+        size = length || LibSQLite3Blob.bytes(blob) - offset
+        bytes = Bytes.new(size)
+        raise SQLite3::Exception.new(handle) unless LibSQLite3Blob.read(blob, bytes.to_unsafe, size, offset) == 0
+        bytes
+      ensure
+        LibSQLite3Blob.close(blob)
+      end
     end
 
     def append_delta(delta : Delta) : History::Version

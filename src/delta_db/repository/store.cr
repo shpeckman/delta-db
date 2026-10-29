@@ -9,11 +9,11 @@ module DeltaDB
         @remote_index = {} of RemoteRepositoryId => LocalRepositoryId
       end
 
-      def create(local_id : LocalRepositoryId = LocalRepositoryId.random, remote_id : RemoteRepositoryId? = nil, history_id : HistoryId = HistoryId.random) : Repository
+      def create(local_id : LocalRepositoryId = LocalRepositoryId.random, remote_id : RemoteRepositoryId? = nil, history_id : HistoryId = HistoryId.random, blob_store : Blob::Store = Blob::Store.new) : Repository
         if @repositories.has_key?(local_id)
           raise ArgumentError.new("repository already exists: #{local_id}")
         end
-        repository = Repository.new(local_id, remote_id, history_id)
+        repository = Repository.new(local_id, remote_id, history_id, blob_store)
         @repositories[local_id] = repository
         @remote_index[remote_id] = local_id if remote_id
         repository
@@ -23,11 +23,11 @@ module DeltaDB
         @repositories[id]?
       end
 
-      def open_shared(remote_id : RemoteRepositoryId, local_id : LocalRepositoryId = LocalRepositoryId.random) : Repository
+      def open_shared(remote_id : RemoteRepositoryId, local_id : LocalRepositoryId = LocalRepositoryId.random, blob_store : Blob::Store = Blob::Store.new) : Repository
         if existing = @remote_index[remote_id]?
           return @repositories[existing]
         end
-        create(local_id, remote_id, HistoryId.new(remote_id.value))
+        create(local_id, remote_id, HistoryId.new(remote_id.value), blob_store)
       end
 
       def remove(id : LocalRepositoryId) : Repository?

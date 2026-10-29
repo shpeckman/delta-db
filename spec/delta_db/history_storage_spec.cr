@@ -86,6 +86,40 @@ describe "history DAG storage" do
     storage.db.scalar("SELECT COUNT(*) FROM history_delta_value_packs").should eq 1
   end
 
+  it "reads packed slices incrementally from mmap-backed databases" do
+    path = File.tempname("delta-db", ".sqlite")
+    begin
+      storage = DeltaDB::Storage.open(path, mmap_size: 1_i64 << 20)
+      storage.mmap_size.should eq 1_i64 << 20
+      history = DeltaDB::HistoryId.random
+      timeline = storage_timeline(1u64)
+      actor = DeltaDB::ActorUuid.random
+      large = Bytes.new(200_000) { |index| (index % 251).to_u8 }
+      values = [Bytes.empty, large, "tail".to_slice]
+      timestamps = values.map_with_index { |_, index| DeltaDB::Lamport.new(DeltaDB::ReplicaId::LOCAL, 20u32 + index) }
+      deltas = values.zip(timestamps).map { |value, timestamp| DeltaDB::Delta.new(history, timeline, actor, timestamp, value) }
+
+      storage.pack_deltas(history, deltas)
+
+      timestamps.each_with_index { |timestamp, index| storage.delta_value(history, timestamp).should eq values[index] }
+      storage.close
+    ensure
+      File.delete?(path)
+    end
+  end
+
+  it "validates and disables mmap sizes" do
+    path = File.tempname("delta-db", ".sqlite")
+    begin
+      expect_raises(ArgumentError) { DeltaDB::Storage.open(path, mmap_size: -1_i64) }
+      storage = DeltaDB::Storage.open(path, mmap_size: 0_i64)
+      storage.mmap_size.should eq 0
+      storage.close
+    ensure
+      File.delete?(path)
+    end
+  end
+
   it "persists delta runs" do
     storage = DeltaDB::Storage.in_memory
     history = DeltaDB::HistoryId.random
