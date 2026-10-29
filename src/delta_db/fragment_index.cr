@@ -1,77 +1,11 @@
 # src/delta_db/fragment_index.cr
 module DeltaDB
-  uuid_id FragmentId
-  uuid_id InsertionId
-
-  struct Length
-    include Comparable(Length)
-
-    getter value : UInt32
-
-    def initialize(@value : UInt32)
-    end
-
-    def <=>(other : Length) : Int32
-      @value <=> other.value
-    end
-  end
-
-  enum LiteralOrigin
-    Original
-    Inserted
-  end
-
-  struct FragmentAlias
-    getter fragment_id : FragmentId
-    getter span : Range(UInt32, UInt32)
-
-    def initialize(@fragment_id : FragmentId, @span : Range(UInt32, UInt32))
-    end
-  end
-
-  struct AliasSpan
-    getter start : UInt32
-    getter end : UInt32
-
-    def initialize(@start : UInt32, @end : UInt32)
-    end
-  end
-
-  struct ContentSplice
-    getter range : Range(UInt32, UInt32)
-    getter text : String
-
-    def initialize(@range : Range(UInt32, UInt32), @text : String)
-    end
-  end
-
-  struct EditPlan
-    getter fragment_id : FragmentId
-    getter splices : Array(ContentSplice)
-
-    def initialize(@fragment_id : FragmentId, @splices : Array(ContentSplice) = [] of ContentSplice)
-    end
-  end
-
-  struct AppliedFragmentEdit
-    getter fragment_id : FragmentId
-    getter range : Range(UInt32, UInt32)
-    getter text : String
-
-    def initialize(@fragment_id : FragmentId, @range : Range(UInt32, UInt32), @text : String)
-    end
-  end
-
-  class FragmentRecord
-    getter id : FragmentId
-    property text : String
-    getter origin : LiteralOrigin
-
-    def initialize(@id : FragmentId, @text : String, @origin : LiteralOrigin)
-    end
-  end
-
   class FragmentIndex
+    enum Origin
+      Original
+      Inserted
+    end
+
     getter records : Hash(FragmentId, FragmentRecord)
     getter aliases : Hash(FragmentId, FragmentAlias)
 
@@ -135,15 +69,5 @@ module DeltaDB
       end
       plan.splices.map { |splice| AppliedFragmentEdit.new(plan.fragment_id, splice.range, splice.text) }
     end
-  end
-
-  def self.validate_edit_ranges(ranges : Array(Range(UInt32, UInt32))) : Bool
-    ranges.each_with_index do |range, index|
-      return false if range.end < range.begin
-      if index > 0 && ranges[index - 1].end > range.begin
-        return false
-      end
-    end
-    true
   end
 end
