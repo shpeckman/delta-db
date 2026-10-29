@@ -2,11 +2,11 @@
 module DeltaDB
   module Text
     class Rope
-      abstract class Node
+      private abstract class Node
         abstract def summary : Summary
       end
 
-      class Leaf < Node
+      private class Leaf < Node
         getter chunk : Chunk
         getter summary : Summary
 
@@ -15,7 +15,7 @@ module DeltaDB
         end
       end
 
-      class Concat < Node
+      private class Concat < Node
         getter summary : Summary
         getter left : Node
         getter right : Node
