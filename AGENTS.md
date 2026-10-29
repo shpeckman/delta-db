@@ -3,8 +3,8 @@
 ## Layout
 
 - `src/delta_db.cr`: library entrypoint and version constant.
-- `src/delta_db/`: identity, text, history, client, and storage modules; `history_engine.cr` contains the DAG and `storage_history.cr` its SQLite persistence; `client.cr`, `worktree.cr`, and `repository.cr` contain typed client models.
-- `spec/delta_db/`: unit and differential specs; `text_crdt_spec.cr` covers fragments, anchors, undo, and replica convergence; `history_dag_spec.cr` and `history_storage_spec.cr` cover DAG algorithms, packing, migrations, runs, and checkpoints; `client_models_spec.cr` covers typed deltas, worktrees, fragments, blobs, sealing, and repositories.
+- `src/delta_db/`: identity, text, history, client, and storage modules; `history_engine.cr` contains the DAG and `storage_history.cr` its SQLite persistence; `client.cr`, `worktree.cr`, and `repository.cr` contain typed client models; `checkpoint.cr`, `replication.cr`, and `storage_replication.cr` contain checkpoint/sync support.
+- `spec/delta_db/`: unit and differential specs; `text_crdt_spec.cr` covers fragments, anchors, undo, and replica convergence; `history_dag_spec.cr` and `history_storage_spec.cr` cover DAG algorithms, packing, migrations, runs, and checkpoints; `client_models_spec.cr` covers typed deltas, worktrees, fragments, blobs, sealing, and repositories; `replication_spec.cr` covers checkpoint codecs, outbox, sync, and recovery.
 - `shard.yml`: Crystal and sqlite3 dependency declarations.
 
 ## Commands

@@ -1,7 +1,7 @@
 # src/delta_db/storage_history.cr
 module DeltaDB
   class Storage
-    CURRENT_SCHEMA_VERSION = 2
+    CURRENT_SCHEMA_VERSION = 3
 
     private def migrate_history_dag : Nil
       current = schema_version
@@ -42,6 +42,7 @@ module DeltaDB
       ].each do |sql|
         @db.exec(sql)
       end
+      migrate_replication
       self.schema_version = CURRENT_SCHEMA_VERSION if current < CURRENT_SCHEMA_VERSION
     end
 

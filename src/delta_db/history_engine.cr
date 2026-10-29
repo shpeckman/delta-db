@@ -153,7 +153,11 @@ module DeltaDB
       @max_timestamp = Math.max(@max_timestamp, batch.id.ordinal)
       @epoch_count = Math.max(@epoch_count, batch.epoch)
       timeline = @timelines[batch.timeline]
-      timeline.head = timeline.head.union(HistoryVersion.from_id(batch.id))
+      timeline.head = if version_reaches(timeline.head, batch.parents)
+                        HistoryVersion.from_id(batch.id)
+                      else
+                        timeline.head.union(HistoryVersion.from_id(batch.id))
+                      end
       @timelines[batch.timeline] = timeline
     end
 
@@ -328,6 +332,38 @@ module DeltaDB
         restored.head = timeline.head
         @timelines[timeline.id] = restored
       end
+    end
+
+    def merge_checkpoint(snapshot : HistoryDagSnapshot) : Nil
+      unless snapshot.history_id == @history_id
+        raise ArgumentError.new("checkpoint history does not match")
+      end
+
+      previous_heads = @timelines.transform_values(&.head)
+      snapshot.timelines.each do |timeline|
+        @timelines[timeline.id] ||= timeline
+      end
+      pending = snapshot.batches.reject { |batch| @batches.has_key?(batch.id) }
+      until pending.empty?
+        batch = pending.find { |candidate| candidate.parents.ids.all? { |id| @batches.has_key?(id) } }
+        unless batch
+          raise ArgumentError.new("checkpoint contains a missing or cyclic parent")
+        end
+        insert_globally(batch)
+        pending.delete(batch)
+      end
+      snapshot.timelines.each do |timeline|
+        existing = @timelines[timeline.id]
+        previous = previous_heads[timeline.id]?
+        existing.head = previous ? previous.union(timeline.head) : timeline.head
+        @timelines[timeline.id] = existing
+      end
+      snapshot.epochs.each do |epoch|
+        @epochs << epoch unless @epochs.any? { |existing| existing.epoch == epoch.epoch }
+      end
+      @epochs.sort_by!(&.epoch)
+      @max_timestamp = Math.max(@max_timestamp, snapshot.max_timestamp)
+      @epoch_count = Math.max(@epoch_count, snapshot.epoch_count)
     end
 
     private def validate_version(version : HistoryVersion) : Nil
