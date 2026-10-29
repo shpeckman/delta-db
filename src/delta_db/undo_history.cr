@@ -2,7 +2,7 @@
 module DeltaDB
   # The undo/redo history of a buffer.
   #
-  # Clean-room port of `crates/text/src/text.rs` `UndoHistory`. The time-based
+  # Clean-room port of `crates/text/src/text.rs` `History`. The time-based
   # transaction grouping (`group_interval`, `Instant`) is dropped; the core
   # undo/redo stack + operations map semantics are preserved.
   class UndoHistory
