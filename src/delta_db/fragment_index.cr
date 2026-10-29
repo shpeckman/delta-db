@@ -81,3 +81,9 @@ module DeltaDB
     end
   end
 end
+
+require "./delta_db/fragment_index/record"
+require "./delta_db/fragment_index/alias"
+require "./delta_db/fragment_index/splice"
+require "./delta_db/fragment_index/edit_plan"
+require "./delta_db/fragment_index/applied_edit"
