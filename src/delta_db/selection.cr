@@ -1,9 +1,5 @@
 # src/delta_db/selection.cr
 module DeltaDB
-  # The goal of a selection (where the cursor "wanted" to be).
-  #
-  # Port of `crates/text/src/selection.rs` `SelectionGoal`. The numeric payloads
-  # (`f64` positions) are dropped in this clean-room port.
   enum SelectionGoal
     None
     HorizontalPosition
@@ -11,9 +7,6 @@ module DeltaDB
     WrappedHorizontalPosition
   end
 
-  # A selection (or cursor) as a possibly-reversed range plus a goal.
-  #
-  # Port of `crates/text/src/selection.rs` `Selection<T>`.
   struct Selection(T)
     getter id : Int32
     getter start : T
@@ -28,12 +21,10 @@ module DeltaDB
       Selection(T).new(0, offset, offset, false, SelectionGoal::None)
     end
 
-    # The position the selection "stopped" at (the active end).
     def head : T
       @reversed ? @start : @end
     end
 
-    # The position the selection was initiated from.
     def tail : T
       @reversed ? @end : @start
     end

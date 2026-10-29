@@ -1,8 +1,5 @@
 # src/delta_db/edit.cr
 module DeltaDB
-  # A replacement edit: `old` range replaced by `new` range.
-  #
-  # Port of `crates/text/src/text.rs` `Edit<D>`.
   struct Edit(D)
     getter old : Range(D, D)
     getter new : Range(D, D)

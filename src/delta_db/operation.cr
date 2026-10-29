@@ -1,11 +1,7 @@
 # src/delta_db/operation.cr
 module DeltaDB
-  # A byte offset spanning the full (visible + deleted) text.
   alias FullOffset = UInt32
 
-  # A single edit operation: replace `ranges` with `new_text` (1:1).
-  #
-  # Port of `crates/text/src/text.rs` `EditOperation`.
   struct EditOperation
     getter timestamp : Lamport
     getter version : Global
@@ -16,9 +12,6 @@ module DeltaDB
     end
   end
 
-  # An undo operation, mapping edited timestamps to undo counts.
-  #
-  # Port of `crates/text/src/text.rs` `UndoOperation`.
   struct UndoOperation
     getter timestamp : Lamport
     getter version : Global
@@ -28,6 +21,5 @@ module DeltaDB
     end
   end
 
-  # A buffer operation: an edit or an undo.
   alias Operation = EditOperation | UndoOperation
 end

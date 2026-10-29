@@ -2,14 +2,6 @@
 require "sqlite3"
 
 module DeltaDB
-  # SQLite-backed storage for the delta/history engine.
-  #
-  # The schema now matches the real Delta `data.sqlite` (recovered + validated):
-  # `histories` (integer `history_key` + `history_uuid` blob), `history_delta_values`
-  # keyed by `(history_key, actor, timestamp)`, `history_versions` with a
-  # `version TEXT` (encoded `HistoryVersion`) + integer `version_key`, `history_actors`,
-  # plus `app_meta`/`metadata` key-value tables. `WITHOUT ROWID` where the real
-  # tables use it.
   class Storage
     OVERFLOW_THRESHOLD = 16
 
@@ -30,8 +22,6 @@ module DeltaDB
     def close : Nil
       @db.close
     end
-
-    # -- schema ------------------------------------------------------------
 
     private def migrate : Nil
       [
@@ -66,8 +56,6 @@ module DeltaDB
       migrate_history_dag
     end
 
-    # -- app_meta ----------------------------------------------------------
-
     def meta_get(key : String) : String?
       @db.query_one?("SELECT value FROM app_meta WHERE key = ?", key) do |rs|
         rs.read(String)
@@ -86,9 +74,6 @@ module DeltaDB
       meta_set("schema_version", version.to_s)
     end
 
-    # -- histories ---------------------------------------------------------
-
-    # Resolve (or create) the integer `history_key` for a `HistoryId`.
     def history_key_for(history : HistoryId) : Int64
       uuid = history.value.bytes.to_slice
       key = @db.query_one?("SELECT history_key FROM histories WHERE history_uuid = ?", uuid) do |rs|
@@ -119,9 +104,6 @@ module DeltaDB
       end
     end
 
-    # -- deltas -------------------------------------------------------------
-
-    # Insert a delta (header + value). Large values spill into overflow chunks.
     def insert_delta(delta : Delta) : Nil
       @db.transaction do |tx|
         conn = tx.connection
@@ -161,7 +143,6 @@ module DeltaDB
       end
     end
 
-    # Read and reassemble a delta's full value (inline + overflow chunks).
     def delta_value(history : HistoryId, timestamp : Lamport) : Bytes?
       key = @db.query_one?("SELECT history_key FROM histories WHERE history_uuid = ?", history.value.bytes.to_slice) do |rs|
         rs.read(Int64)
@@ -206,9 +187,6 @@ module DeltaDB
       io.to_slice
     end
 
-    # -- timeline append / versions ----------------------------------------
-
-    # Append a delta, assigning the next version and advancing the timeline head.
     def append_delta(delta : Delta) : HistoryVersion
       result : HistoryVersion? = nil
       @db.transaction do |tx|
@@ -241,7 +219,6 @@ module DeltaDB
       result.not_nil!
     end
 
-    # Resolve the history_key without using the pooled connection (for tx use).
     private def history_conn(conn : DB::Connection, history : HistoryId) : Int64
       uuid = history.value.bytes.to_slice
       conn.query_one?("SELECT history_key FROM histories WHERE history_uuid = ?", uuid) do |rs|

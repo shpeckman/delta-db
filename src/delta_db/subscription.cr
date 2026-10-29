@@ -1,9 +1,5 @@
+# src/delta_db/subscription.cr
 module DeltaDB
-  # A topic that broadcasts edit events to subscribers.
-  #
-  # Clean-room port of `deltadb::subscription::{EditTopic,EditSubscription}`.
-  # Upstream is a broadcast channel with RAII-drop deregistration; Crystal has
-  # no destructors, so unsubscribe is explicit via `cancel`.
   class EditTopic(T)
     @subscribers = [] of Proc(T, Nil)
 
@@ -21,7 +17,6 @@ module DeltaDB
     end
   end
 
-  # A handle to a subscription; `cancel` deregisters it.
   class EditSubscription(T)
     @cancelled = false
 

@@ -67,7 +67,7 @@ describe "delta ids" do
     a = DeltaDB::ActorUuid.random
     b = DeltaDB::ActorUuid.random
     (a == b).should be_false
-    a.to_s.size.should eq 36 # canonical uuid string
+    a.to_s.size.should eq 36
   end
 
   it "orders and compares ids" do

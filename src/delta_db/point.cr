@@ -1,7 +1,5 @@
+# src/delta_db/point.cr
 module DeltaDB
-  # A zero-indexed point in a text buffer consisting of a row and column.
-  #
-  # Port of `crates/rope/src/point.rs`.
   struct Point
     include Comparable(Point)
 
@@ -26,8 +24,6 @@ module DeltaDB
       r == 0 ? @column <=> other.column : r
     end
 
-    # Point addition: appending a same-row point advances the column; otherwise
-    # the result is `(row + other.row, other.column)`.
     def +(other : Point) : Point
       if other.row == 0
         Point.new(@row, @column + other.column)

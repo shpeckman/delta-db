@@ -1,11 +1,5 @@
+# src/delta_db/text_summary.cr
 module DeltaDB
-  # Summary of a string of text. This is the monoid (`zero` + associative `+`)
-  # that the rope's `SumTree` aggregates over chunks.
-  #
-  # Port of `crates/rope/src/rope.rs` `TextSummary`.
-  #
-  # Note: `lines.column` is a *byte* offset within the line (Zed measures
-  # `Point.column` in bytes, not chars); `PointUtf16.column` is UTF-16 code units.
   struct TextSummary
     getter len : UInt64
     getter chars : UInt64
@@ -43,9 +37,6 @@ module DeltaDB
       )
     end
 
-    # Naive reference implementation (mirrors Rust `From<&str> for TextSummary`).
-    # Used both as a constructor and as the spec oracle against the bit-packed
-    # `Chunk#text_summary`.
     def self.from(text : String) : TextSummary
       chars = 0u64
       len_utf16 = 0u64
@@ -102,7 +93,6 @@ module DeltaDB
       @lines += Point.new(1u32, 0u32)
     end
 
-    # Associative monoid add (port of Rust `AddAssign<&Self>`).
     def add!(other : TextSummary) : Nil
       joined_chars = @last_line_chars + other.first_line_chars
       if joined_chars > @longest_row_chars

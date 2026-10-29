@@ -1,7 +1,7 @@
+# spec/delta_db/chunk_spec.cr
 require "../spec_helper"
 
 describe DeltaDB::Chunk do
-  # The bit-packed chunk summary must agree with the naive per-char oracle.
   it "computes a text summary matching the naive reference" do
     samples = [
       "",

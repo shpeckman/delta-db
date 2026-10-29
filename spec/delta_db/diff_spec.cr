@@ -1,7 +1,6 @@
+# spec/delta_db/diff_spec.cr
 require "../spec_helper"
 
-# Apply an edit script to reconstruct the target from `a` (using `b` to supply
-# inserted elements). Returns the reconstructed sequence.
 private def apply_ops(a : Array(Int32), b : Array(Int32), ops : Array(DeltaDB::DiffOp)) : Array(Int32)
   result = [] of Int32
   ai = 0

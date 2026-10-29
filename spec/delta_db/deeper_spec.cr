@@ -1,3 +1,4 @@
+# spec/delta_db/deeper_spec.cr
 require "../spec_helper"
 
 describe DeltaDB::EditTopic do
@@ -34,7 +35,7 @@ describe DeltaDB::FileReadDiagnostics do
 
   it "does not warn for fast reads" do
     diag = DeltaDB::FileReadDiagnostics.new("/tmp/x", 10u64, 1.millisecond)
-    DeltaDB::FileReadDiagnostics.warn_if_read_slow(diag) # no-op, no exception
+    DeltaDB::FileReadDiagnostics.warn_if_read_slow(diag)
   end
 end
 

@@ -2,9 +2,6 @@
 require "uuid"
 
 module DeltaDB
-  # Identifies a batch of deltas: a UUID plus a monotonic batch ordinal.
-  #
-  # Observed as `DeltaBatchId(UUID.N)`.
   struct DeltaBatchId
     include Comparable(DeltaBatchId)
 

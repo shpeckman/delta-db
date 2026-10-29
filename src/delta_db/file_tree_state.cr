@@ -1,7 +1,5 @@
+# src/delta_db/file_tree_state.cr
 module DeltaDB
-  # Identifier for an inode in the file tree (a filesystem inode number).
-  #
-  # Recovered from `deltadb::file_tree_state::InodeId`.
   struct InodeId
     include Comparable(InodeId)
 
@@ -19,18 +17,12 @@ module DeltaDB
     end
   end
 
-  # The kind of a file-tree entry.
-  #
-  # Recovered from `deltadb::file_tree_state::FileTreeEntryKind`.
   enum FileTreeEntryKind
     File
     Directory
     Symlink
   end
 
-  # A location (path) at which an inode is reachable.
-  #
-  # Clean-room reconstruction of `deltadb::file_tree_state::InodeLocation`.
   struct InodeLocation
     getter path : String
 
@@ -38,9 +30,6 @@ module DeltaDB
     end
   end
 
-  # Payload for a regular-file inode: a reference to its content blob.
-  #
-  # Clean-room reconstruction of `deltadb::file_tree_state::FilePayload`.
   struct FilePayload
     getter content_id : DeltaId
 
@@ -48,9 +37,6 @@ module DeltaDB
     end
   end
 
-  # Payload for a symlink inode: its target path.
-  #
-  # Clean-room reconstruction of `deltadb::file_tree_state::SymlinkPayload`.
   struct SymlinkPayload
     getter target : String
 
@@ -58,9 +44,6 @@ module DeltaDB
     end
   end
 
-  # An inode: id, kind, and a kind-specific payload.
-  #
-  # Clean-room reconstruction of `deltadb::file_tree_state::Inode`.
   struct Inode
     getter id : InodeId
     getter kind : FileTreeEntryKind
@@ -70,9 +53,6 @@ module DeltaDB
     end
   end
 
-  # A parent -> child edge in the file tree.
-  #
-  # Clean-room reconstruction of `deltadb::file_tree_state::ChildEdge`.
   struct ChildEdge
     getter parent : InodeId
     getter child : InodeId
@@ -82,9 +62,6 @@ module DeltaDB
     end
   end
 
-  # Key for a child edge (parent id + child name).
-  #
-  # Clean-room reconstruction of `deltadb::file_tree_state::ChildEdgeKey`.
   struct ChildEdgeKey
     getter parent : InodeId
     getter name : String
@@ -93,9 +70,6 @@ module DeltaDB
     end
   end
 
-  # An edge that would form a symlink cycle.
-  #
-  # Clean-room reconstruction of `deltadb::file_tree_state::CycleEdge`.
   struct CycleEdge
     getter from : InodeId
     getter to : InodeId

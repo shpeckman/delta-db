@@ -1,3 +1,4 @@
+# spec/delta_db/anchor_spec.cr
 require "../spec_helper"
 
 describe DeltaDB::Bias do
@@ -41,7 +42,7 @@ describe DeltaDB::Anchor do
     expected.write_bytes(0x778899AAu32, IO::ByteFormat::LittleEndian)
     expected.write_bytes(0x33445566u32, IO::ByteFormat::LittleEndian)
     expected.write_bytes(0x1122u16, IO::ByteFormat::LittleEndian)
-    expected.write_byte(1u8) # bias = Right
+    expected.write_byte(1u8)
     expected.write_byte(0u8)
 
     id.should eq expected.to_slice

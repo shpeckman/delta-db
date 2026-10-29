@@ -1,18 +1,12 @@
+# src/delta_db/diff.cr
 module DeltaDB
-  # An edit operation in a diff.
   enum DiffOp
-    Equal  # one element present in both sequences
-    Insert # one element present only in the target
-    Delete # one element present only in the source
+    Equal
+    Insert
+    Delete
   end
 
-  # Sequence diffing.
-  #
-  # This is an LCS-based edit script (O(n*m)); a clean, correct reimplementation
-  # of `deltadb::diff` rather than a port of Zed's `similar`-backed diff. Myers
-  # O(ND) is the natural later optimization.
   module Diff
-    # A minimal edit script transforming `a` into `b`.
     def self.diff(a : Array(T), b : Array(T)) : Array(DiffOp) forall T
       n = a.size
       m = b.size
@@ -50,7 +44,6 @@ module DeltaDB
       ops.reverse!
     end
 
-    # Character-level diff between two strings.
     def self.chars(a : String, b : String) : Array(DiffOp)
       diff(a.chars.map(&.ord), b.chars.map(&.ord))
     end

@@ -1,7 +1,5 @@
+# src/delta_db/point_utf16.cr
 module DeltaDB
-  # A zero-indexed point in a text buffer measured in UTF-16 code units.
-  #
-  # Port of `crates/rope/src/point_utf16.rs`.
   struct PointUtf16
     include Comparable(PointUtf16)
 

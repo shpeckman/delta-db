@@ -1,10 +1,9 @@
+# src/delta_db/rope.cr
 module DeltaDB
-  # An immutable rope node. `nil` denotes the empty rope.
   abstract class RopeNode
     abstract def summary : TextSummary
   end
 
-  # A leaf holding a single text chunk.
   class RopeLeaf < RopeNode
     getter chunk : Chunk
     getter summary : TextSummary
@@ -14,7 +13,6 @@ module DeltaDB
     end
   end
 
-  # An internal node concatenating two sub-ropes.
   class RopeConcat < RopeNode
     getter summary : TextSummary
     getter left : RopeNode
@@ -25,14 +23,6 @@ module DeltaDB
     end
   end
 
-  # An immutable, persistent rope of text. Backed by a balanced binary tree of
-  # `Chunk` leaves aggregated by `TextSummary`, enabling byte/char/utf16/line
-  # navigation in O(log n) with structural sharing.
-  #
-  # This is a specialized reimplementation of Zed's generic `SumTree<Chunk>`;
-  # it drops the `Dimension`/`Cursor`/`SeekTarget` trait machinery in favor of a
-  # concrete text rope. `concat` does not rebalance (builds are balanced; repeated
-  # `append` can deepen the right spine) — noted as a known simplification.
   class Rope
     getter root : RopeNode?
 
@@ -90,7 +80,6 @@ module DeltaDB
       append(other)
     end
 
-    # Sub-rope for the byte range `[begin, end)`.
     def slice(range : Range(Int32, Int32)) : Rope
       Rope.new(Rope.slice_node(@root, range.begin, range.end - range.begin))
     end
@@ -117,8 +106,6 @@ module DeltaDB
       Rope.point_utf16_to_offset(@root, point)
     end
 
-    # -- internals ---------------------------------------------------------
-
     private def append_to(io : IO, node : RopeNode?) : Nil
       case node
       when RopeLeaf
@@ -130,8 +117,6 @@ module DeltaDB
       end
     end
 
-    # Split text into `Chunk`s of at most MAX_BASE bytes, each ending on a char
-    # boundary.
     def self.chunk(text : String) : Array(Chunk)
       chunks = [] of Chunk
       bytes = text.to_slice

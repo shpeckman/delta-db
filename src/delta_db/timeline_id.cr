@@ -2,9 +2,6 @@
 require "uuid"
 
 module DeltaDB
-  # Identifies a timeline: a UUID plus a reset generation.
-  #
-  # Observed in the runtime log as `TimelineId(UUID.N)`.
   struct TimelineId
     include Comparable(TimelineId)
 

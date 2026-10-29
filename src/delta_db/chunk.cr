@@ -1,15 +1,5 @@
+# src/delta_db/chunk.cr
 module DeltaDB
-  # A fixed-size chunk of UTF-8 text (up to `MAX_BASE` = 128 bytes) with
-  # bit-packed metadata used as the leaf of the rope's `SumTree`.
-  #
-  # Four `UInt128` bitmaps run parallel to the bytes:
-  #   chars        bit[i] set iff byte i is a UTF-8 character boundary
-  #   chars_utf16  bit[i] set iff byte i is the start of a UTF-16 code unit
-  #                (a 4-byte UTF-8 char sets two adjacent bits)
-  #   newlines     bit[i] set iff byte i is an ascii newline
-  #   tabs         bit[i] set iff byte i is an ascii tab
-  #
-  # Port of `crates/rope/src/chunk.rs`.
   class Chunk
     MAX_BASE = 128
     MIN_BASE =  64
@@ -37,28 +27,21 @@ module DeltaDB
       @chars_utf16 = (@chars_utf16 << 1) | @chars
     end
 
-    # Constructor from pre-computed bitmaps (used by slice/split_at).
     def initialize(@text : String, @chars : UInt128, @chars_utf16 : UInt128, @newlines : UInt128, @tabs : UInt128)
     end
 
-    # A byte is a UTF-8 char boundary iff it is not a continuation byte (0b10xxxxxx).
     def self.char_boundary_byte?(b : UInt8) : Bool
       (b & 0xC0u8) != 0x80u8
     end
 
-    # `(1 << offset) - 1` with saturating/wrapping semantics for offset >= 128.
     def self.saturating_shl_mask(offset : Int32) : UInt128
       offset >= MAX_BASE ? UInt128::MAX : (1u128 << offset) - 1u128
     end
 
-    # `!(MAX >> offset)` = high `offset` bits set, saturating at offset >= 128.
     def self.saturating_shr_mask(offset : Int32) : UInt128
       offset >= MAX_BASE ? UInt128::MAX : ~(UInt128::MAX >> offset)
     end
 
-    # Position (0-based bit index) of the n-th (1-based) set bit, or MAX_BASE.
-    # Simple O(128) scan — Zed uses a branchless O(1) select; noted as a known
-    # simplification for the clean port.
     def self.nth_set_bit(v : UInt128, n : Int32) : Int32
       count = 0
       (0...MAX_BASE).each do |i|
@@ -70,7 +53,6 @@ module DeltaDB
       MAX_BASE
     end
 
-    # Length in bytes.
     def len : Int32
       @text.bytesize
     end
@@ -79,12 +61,10 @@ module DeltaDB
       @text.empty?
     end
 
-    # Length in UTF-16 code units.
     def len_utf16 : OffsetUtf16
       OffsetUtf16.new(@chars_utf16.popcount.to_u64)
     end
 
-    # Point marking the number of lines and the byte-length of the last line.
     def lines : Point
       row = @newlines.popcount.to_u32
       column = (@newlines.leading_zeros_count.to_i32 - (MAX_BASE - len)).to_u32
@@ -103,7 +83,6 @@ module DeltaDB
       (@chars_utf16 & Chunk.saturating_shr_mask(@newlines.leading_zeros_count.to_i32)).popcount.to_u32
     end
 
-    # The row index of the longest row and its char count.
     def longest_row : NamedTuple(longest_row: UInt32, longest_row_chars: UInt32)
       chars = @chars
       newlines = @newlines
@@ -233,7 +212,6 @@ module DeltaDB
       offset
     end
 
-    # Byte range [start, end) of the given row.
     def offset_range_for_row(row : UInt32) : Range(Int32, Int32)
       row_start = row > 0 ? Chunk.nth_set_bit(@newlines, row.to_i32) + 1 : 0
       row_len = if row_start == MAX_BASE
@@ -244,7 +222,6 @@ module DeltaDB
       row_start...(row_start + row_len)
     end
 
-    # Owned sub-chunk for `range` (char-boundary aligned).
     def slice(range : Range(Int32, Int32)) : Chunk
       start = range.begin
       finish = range.end

@@ -1,8 +1,5 @@
+# src/delta_db/offset_utf16.cr
 module DeltaDB
-  # A byte offset measured in UTF-16 code units.
-  #
-  # Port of `crates/rope/src/offset_utf16.rs`. Rust uses `usize`; we use `UInt64`
-  # to match 64-bit `usize`.
   struct OffsetUtf16
     include Comparable(OffsetUtf16)
 

@@ -59,7 +59,6 @@ describe "typed client models" do
     replica = DeltaDB::Replica(DeltaDB::Map).new(DeltaDB::Map.new, history_id: history_id)
     buffer = DeltaDB::ClientBuffer.new(DeltaDB::BufferId.new(1u64), text: "abc")
     replica.value.set_buffer("document", buffer)
-
     first = client_delta(history_id, timeline, actor, next_timestamp(clock), DeltaDB::ClientOperation.register("status", "ready"))
     second = client_delta(history_id, timeline, actor, next_timestamp(clock), DeltaDB::ClientOperation.buffer_edit("document", [1...2], ["X"]))
     replica.apply_history_delta(first)

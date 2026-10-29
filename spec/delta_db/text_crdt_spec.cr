@@ -126,7 +126,6 @@ describe DeltaDB::TextBuffer do
     two.apply_op(first)
     two.text.should eq one.text
     two.deferred_ops_len.should eq 0
-
     undo = one.undo.not_nil!
     three = new_buffer(3u16, "abc")
     three.apply_op(undo)

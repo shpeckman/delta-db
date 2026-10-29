@@ -44,8 +44,8 @@ describe DeltaDB::UndoHistory do
     history = DeltaDB::UndoHistory.new(DeltaDB::Rope.build("base"))
     clock = DeltaDB::Clock.new
     history.start_transaction(clock).should_not be_nil
-    history.start_transaction(clock).should be_nil # nested returns nil
+    history.start_transaction(clock).should be_nil
     history.end_transaction.should be_nil
-    history.end_transaction.should be_nil # empty transaction dropped
+    history.end_transaction.should be_nil
   end
 end

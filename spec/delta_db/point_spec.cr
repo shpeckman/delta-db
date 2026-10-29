@@ -1,3 +1,4 @@
+# spec/delta_db/point_spec.cr
 require "../spec_helper"
 
 describe DeltaDB::Point do

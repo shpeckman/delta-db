@@ -1,6 +1,6 @@
+# spec/delta_db/rope_spec.cr
 require "../spec_helper"
 
-# All char-boundary byte offsets in `s`, including 0 and `s.bytesize`.
 private def char_boundaries(s : String) : Array(Int32)
   boundaries = [0]
   off = 0
@@ -21,7 +21,7 @@ describe DeltaDB::Rope do
       "😀😀😀 mixed",
       "a\tb\tc\n",
       "混合文本 第二行",
-      ("hello world\n" * 20), # multi-chunk (> 128 bytes)
+      ("hello world\n" * 20),
       "x" * 300,
     ]
     samples.each do |s|
@@ -49,7 +49,6 @@ describe DeltaDB::Rope do
       rope = DeltaDB::Rope.build(s)
       char_boundaries(s).each do |offset|
         utf16 = rope.offset_to_point_utf16(offset)
-        # utf16 col -> back to a byte offset via point_utf16_to_offset
         rope.point_utf16_to_offset(utf16).should eq offset
       end
     end
@@ -80,9 +79,8 @@ describe DeltaDB::Rope do
   end
 
   it "slices across chunk boundaries" do
-    s = ("0123456789abcdef" * 20) # 320 bytes, multiple chunks
+    s = ("0123456789abcdef" * 20)
     rope = DeltaDB::Rope.build(s)
-    # a range straddling two chunks
     rope.slice(120...200).to_s.should eq s.byte_slice(120, 80)
   end
 end

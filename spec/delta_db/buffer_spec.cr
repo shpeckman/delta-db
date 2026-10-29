@@ -45,7 +45,6 @@ describe DeltaDB::UndoMap do
     map.insert(undo)
     map.undone?(edit_id).should be_true
 
-    # a second undo toggles back
     map.insert(undo)
     map.undo_count(edit_id).should eq 1u32
   end

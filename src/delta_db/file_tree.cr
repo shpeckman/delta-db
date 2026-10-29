@@ -1,26 +1,15 @@
 # src/delta_db/file_tree.cr
 module DeltaDB
-  # The kind of a filesystem entry in a worktree.
-  #
-  # Recovered from `deltadb::file_tree::FileMode`.
   enum FileMode
     File
     Directory
     Symlink
   end
 
-  # Whether a file's content is text or binary.
-  #
-  # Recovered from `deltadb::file_tree::FileContentKind`.
   enum FileContentKind
     Text
     Binary
   end
-
-  # Delta operations applied to a file tree (recovered from
-  # `deltadb::file_tree::{CreateFileDelta,EditFileDelta,DeleteDelta,RenameDelta,
-  # SetModeDelta,SetLineEndingsDelta,CreateDirDelta,CreateSymlinkDelta}`).
-  # Fields are the clean-room reconstruction of the versioned delta payloads.
 
   struct CreateFileDelta
     getter path : String

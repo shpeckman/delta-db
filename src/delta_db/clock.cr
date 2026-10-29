@@ -1,18 +1,14 @@
 # src/delta_db/clock.cr
 module DeltaDB
-  # A unique identifier for each distributed node (replica).
-  #
-  # Port of `crates/clock/src/clock.rs` `ReplicaId`.
   struct ReplicaId
     include Comparable(ReplicaId)
 
     getter value : UInt16
 
-    LOCAL         = ReplicaId.new(0u16)
-    REMOTE_SERVER = ReplicaId.new(1u16)
-    AGENT         = ReplicaId.new(2u16)
-    LOCAL_BRANCH  = ReplicaId.new(3u16)
-    # First collaborative replica id; any id >= this is a collaborative replica.
+    LOCAL           = ReplicaId.new(0u16)
+    REMOTE_SERVER   = ReplicaId.new(1u16)
+    AGENT           = ReplicaId.new(2u16)
+    LOCAL_BRANCH    = ReplicaId.new(3u16)
     FIRST_COLLAB_ID = ReplicaId.new(8u16)
 
     def initialize(@value : UInt16)
@@ -37,12 +33,8 @@ module DeltaDB
     end
   end
 
-  # A Lamport sequence number.
   alias Seq = UInt32
 
-  # A Lamport timestamp: (sequence value, replica id).
-  #
-  # Port of `crates/clock/src/clock.rs` `Lamport`.
   struct Lamport
     include Comparable(Lamport)
 
@@ -64,37 +56,28 @@ module DeltaDB
       r == 0 ? @replica_id <=> other.replica_id : r
     end
 
-    # Pack into a u64: value in the high 32 bits, replica id in the low 16.
     def as_u64 : UInt64
       (@value.to_u64 << 32) | @replica_id.value.to_u64
     end
   end
 
-  # A mutable Lamport clock.
-  #
-  # Corresponds to `deltadb::delta::Clock`.
   class Clock
     getter lamport : Lamport
 
     def initialize(@lamport : Lamport = Lamport.new(ReplicaId::LOCAL))
     end
 
-    # Return the current timestamp and advance the clock.
     def tick : Lamport
       old = @lamport
       @lamport = Lamport.new(@lamport.replica_id, @lamport.value + 1)
       old
     end
 
-    # Advance past `timestamp`.
     def observe(timestamp : Lamport) : Nil
       @lamport = Lamport.new(@lamport.replica_id, Math.max(@lamport.value, timestamp.value) + 1)
     end
   end
 
-  # A version vector of Lamport timestamps, indexed by replica id.
-  #
-  # Port of `crates/clock/src/clock.rs` `Global`.
   class Global
     def initialize(@values : Array(UInt32) = [] of UInt32)
     end
@@ -168,7 +151,6 @@ module DeltaDB
       end
     end
 
-    # The most recent timestamp observed, if any.
     def most_recent : Lamport?
       best : Lamport? = nil
       @values.each_with_index do |v, i|

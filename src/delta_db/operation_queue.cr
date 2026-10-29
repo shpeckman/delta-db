@@ -1,9 +1,5 @@
+# src/delta_db/operation_queue.cr
 module DeltaDB
-  # A queue of operations keyed by their Lamport timestamp, kept sorted and
-  # deduplicated.
-  #
-  # Clean-room port of `crates/text/src/operation_queue.rs` `OperationQueue<T>`
-  # (upstream is a `SumTree` keyed by timestamp; here a sorted array).
   class OperationQueue(T)
     @items = Array(T).new
 
@@ -15,7 +11,6 @@ module DeltaDB
       @items.empty?
     end
 
-    # Insert operations, sorted by timestamp and deduplicated by timestamp.
     def insert(ops : Array(T), &timestamp : T -> Lamport) : Nil
       ops.each do |op|
         ts = yield(op)
@@ -25,7 +20,6 @@ module DeltaDB
       @items.sort_by! { |op| yield(op) }
     end
 
-    # Remove and return all queued operations.
     def drain : Array(T)
       ops = @items.dup
       @items.clear

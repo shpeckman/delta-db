@@ -52,7 +52,6 @@ describe DeltaDB::OperationQueue do
     queue.insert([TestOp.new(clock.tick), TestOp.new(clock.tick)]) { |op| op.ts }
     queue.size.should eq 2
 
-    # duplicate timestamp is deduplicated
     queue.insert([TestOp.new(clock.tick)]) { |op| op.ts }
     queue.size.should eq 3
 

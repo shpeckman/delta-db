@@ -1,8 +1,5 @@
 # src/delta_db/anchor.cr
 module DeltaDB
-  # Bias used to settle ambiguous cursor/anchor positions.
-  #
-  # Port of `sum_tree::Bias`.
   enum Bias
     Left
     Right
@@ -20,7 +17,6 @@ module DeltaDB
     end
   end
 
-  # Identifies a text buffer.
   struct BufferId
     include Comparable(BufferId)
 
@@ -38,11 +34,6 @@ module DeltaDB
     end
   end
 
-  # A timestamped position in a buffer, used to track positions across edits.
-  #
-  # Port of `crates/text/src/anchor.rs` `Anchor`. The `cmp`/`bias`/`summary`/
-  # `is_valid` methods (which resolve against a `BufferSnapshot`) are deferred
-  # to the buffer/fragment layer; the value type itself is fully portable.
   struct Anchor
     getter timestamp_replica_id : ReplicaId
     getter timestamp_value : Seq
@@ -83,8 +74,6 @@ module DeltaDB
       timestamp == Lamport::MAX && @offset == UInt32::MAX && @bias == Bias::Right
     end
 
-    # 20-byte opaque identifier, matching the Rust `opaque_id` layout:
-    #   [buffer_id u64 LE][offset u32 LE][timestamp_value u32 LE][replica_id u16 LE][bias u8][pad]
     def opaque_id : Bytes
       io = IO::Memory.new
       io.write_bytes(@buffer_id.value, IO::ByteFormat::LittleEndian)

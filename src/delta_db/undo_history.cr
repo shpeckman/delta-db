@@ -1,14 +1,6 @@
 # src/delta_db/undo_history.cr
 module DeltaDB
-  # The undo/redo history of a buffer.
-  #
-  # Clean-room port of `crates/text/src/text.rs` `History`. The time-based
-  # transaction grouping (`group_interval`, `Instant`) is dropped; the core
-  # undo/redo stack + operations map semantics are preserved.
   class UndoHistory
-    # An entry on the undo/redo stack.
-    #
-    # Port of `crates/text/src/text.rs` `Entry`.
     struct Entry
       getter transaction : Transaction
       property suppress_grouping : Bool
@@ -32,12 +24,10 @@ module DeltaDB
       @operations = Hash(Lamport, Operation).new
     end
 
-    # Record an operation.
     def push(op : Operation) : Nil
       @operations[op.timestamp] = op
     end
 
-    # Begin a transaction; returns its id when it is the outermost transaction.
     def start_transaction(clock : Clock) : Lamport?
       @transaction_depth += 1
       if @transaction_depth == 1
@@ -47,7 +37,6 @@ module DeltaDB
       end
     end
 
-    # End the current transaction; finalizes and returns the entry at depth 0.
     def end_transaction : Entry?
       @transaction_depth -= 1
       if @transaction_depth == 0
@@ -62,7 +51,6 @@ module DeltaDB
       end
     end
 
-    # Record that `op_id` is part of the current transaction (if it is an edit).
     def push_undo(op_id : Lamport) : Nil
       if @operations[op_id]?.is_a?(EditOperation)
         entry = @undo_stack.last?
@@ -70,14 +58,12 @@ module DeltaDB
       end
     end
 
-    # Undo: move the top undo entry onto the redo stack.
     def undo : Entry?
       entry = @undo_stack.pop?
       @redo_stack << entry if entry
       entry
     end
 
-    # Redo: move the top redo entry back onto the undo stack.
     def redo : Entry?
       entry = @redo_stack.pop?
       @undo_stack << entry if entry
