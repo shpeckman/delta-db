@@ -71,7 +71,7 @@ buffer.undo
 buffer.text # => "abc"
 ```
 
-Remote operations carry the sender's causal `version`. Operations arriving before their dependencies remain deferred. Duplicate timestamps are applied once. `Network(T)` provides seeded duplicate/out-of-order delivery for convergence testing. `check_invariants` verifies fragment ordering, text lengths, and visible/deleted rope consistency.
+Remote operations carry the sender's causal `version`. Operations arriving before their dependencies remain deferred. Duplicate timestamps are applied once. `Network(T)` provides seeded duplicate/out-of-order delivery for convergence testing. `check_invariants` raises `InvariantError` unless it verifies fragment ordering, text lengths, and visible/deleted rope consistency.
 
 ## SQLite storage
 
@@ -105,6 +105,12 @@ state = sync.connection_state(dag.history_id)
 ```
 
 Checkpoint publication, outbox, and connection state use schema version 3. `checkpoint_publication(s)`, `replication_outbox_entries`, and `load_history_connection_state` recover durable state.
+
+## Errors
+
+Library errors inherit from `DeltaDB::Error`. `NotFoundError` reports missing timelines, paths, buffers, fragments, repositories, and checkpoint publications. `SealedError` rejects mutation of sealed buffers, maps, worktrees, and replicas. `MissingBlobError` reports absent or unavailable blob content. `InvariantError` reports failed `check_invariants`. Malformed input raises `ArgumentError`.
+
+Lengths follow Crystal conventions: `bytesize` counts bytes (`Chunk`, `Rope`, `BufferSnapshot`, `TextBuffer`, `ClientBuffer`, `Fragment`, `TextSummary`) and `size` counts elements.
 
 ## Populated Delta differential test
 
