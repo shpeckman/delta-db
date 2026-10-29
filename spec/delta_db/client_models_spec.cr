@@ -97,8 +97,11 @@ describe "typed client models" do
     restored.read("src/b.txt").should eq "hello world"
     restored.snapshot.version.should eq snapshot.version
 
+    snapshot_size = snapshot.version.size
     worktree.apply(DeltaDB::DeleteDelta.new("src/b.txt"))
     worktree.read("src/b.txt").should be_nil
+    snapshot.version.size.should eq snapshot_size
+    worktree.snapshot.version.size.should eq snapshot_size + 1
     worktree.seal
     expect_raises(DeltaDB::SealedError) { worktree.apply(DeltaDB::CreateDirDelta.new("blocked")) }
   end
