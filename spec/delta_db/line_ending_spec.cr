@@ -1,4 +1,4 @@
-# spec/delta_db/eol_spec.cr
+# spec/delta_db/line_ending_spec.cr
 require "../spec_helper"
 
 describe DeltaDB::Eol do

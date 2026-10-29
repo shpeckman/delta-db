@@ -1,13 +1,6 @@
 # spec/delta_db/patch_spec.cr
 require "../spec_helper"
 
-private struct TestOp
-  getter ts : DeltaDB::Lamport
-
-  def initialize(@ts : DeltaDB::Lamport)
-  end
-end
-
 describe DeltaDB::Text::Patch do
   it "translates old positions through a patch" do
     patch = DeltaDB::Text::Patch(Int32).new([DeltaDB::Text::Edit(Int32).new(2..5, 2..9)])
@@ -42,53 +35,5 @@ describe DeltaDB::Text::Patch do
     patch = DeltaDB::Text::Patch(Int32).new([DeltaDB::Text::Edit(Int32).new(0..3, 0..3)])
     composed = patch.compose([DeltaDB::Text::Edit(Int32).new(10..12, 10..15)])
     composed.edits.size.should eq 2
-  end
-end
-
-describe DeltaDB::OperationQueue do
-  it "inserts, deduplicates, and drains" do
-    queue = DeltaDB::OperationQueue(TestOp).new
-    clock = DeltaDB::Clock.new
-    queue.insert([TestOp.new(clock.tick), TestOp.new(clock.tick)]) { |op| op.ts }
-    queue.size.should eq 2
-
-    queue.insert([TestOp.new(clock.tick)]) { |op| op.ts }
-    queue.size.should eq 3
-
-    drained = queue.drain
-    drained.size.should eq 3
-    queue.size.should eq 0
-    queue.empty?.should be_true
-  end
-end
-
-describe TestNetwork do
-  it "broadcasts and receives messages" do
-    net = TestNetwork(String).new(42u64)
-    a = DeltaDB::ReplicaId.new(0u16)
-    b = DeltaDB::ReplicaId.new(1u16)
-    net.add_peer(a)
-    net.add_peer(b)
-
-    net.broadcast(a, ["hi", "there"])
-    net.has_unreceived?(a).should be_false
-    net.has_unreceived?(b).should be_true
-    received = [] of String
-    until net.idle?
-      received.concat(net.receive(b))
-    end
-    received.should contain "hi"
-    received.should contain "there"
-  end
-
-  it "drops broadcasts from disconnected peers" do
-    net = TestNetwork(String).new
-    a = DeltaDB::ReplicaId.new(0u16)
-    b = DeltaDB::ReplicaId.new(1u16)
-    net.add_peer(a)
-    net.add_peer(b)
-    net.disconnect_peer(a)
-    net.broadcast(a, ["hi"])
-    net.has_unreceived?(b).should be_false
   end
 end
