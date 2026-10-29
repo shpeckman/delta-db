@@ -3,6 +3,8 @@ module DeltaDB
   module Blob
     class Store
       class Memory
+        @blobs : Hash(String, Bytes)
+
         def initialize(blobs : Hash(String, Bytes) = {} of String => Bytes)
           @blobs = blobs.transform_values(&.dup)
         end
