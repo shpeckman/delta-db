@@ -18,8 +18,8 @@ describe DeltaDB::Worktree::Disk do
       entries = DeltaDB::Worktree::Disk.scan_directory("/tmp/delta-db-scan-test")
       entries.map(&.[0]).sort.should eq ["a", "file.txt"]
       kinds = entries.to_h
-      kinds["a"].should eq DeltaDB::FileTreeEntryKind::Directory
-      kinds["file.txt"].should eq DeltaDB::FileTreeEntryKind::File
+      kinds["a"].should eq DeltaDB::FileMode::Directory
+      kinds["file.txt"].should eq DeltaDB::FileMode::File
     ensure
       DeltaDB::Worktree::Disk.remove_dir_all_clearing_permissions("/tmp/delta-db-scan-test")
     end

@@ -15,15 +15,15 @@ module DeltaDB
         path.split(File::SEPARATOR).any? { |comp| comp.starts_with?(TEMP_PREFIX) }
       end
 
-      def self.scan_directory(dir : String) : Array({String, FileTreeEntryKind})
+      def self.scan_directory(dir : String) : Array({String, FileMode})
         Dir.children(dir).map do |name|
           full = File.join(dir, name)
           kind = if File.symlink?(full)
-                   FileTreeEntryKind::Symlink
+                   FileMode::Symlink
                  elsif File.directory?(full)
-                   FileTreeEntryKind::Directory
+                   FileMode::Directory
                  else
-                   FileTreeEntryKind::File
+                   FileMode::File
                  end
           {name, kind}
         end
