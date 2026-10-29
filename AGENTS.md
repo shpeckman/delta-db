@@ -3,7 +3,9 @@
 ## Layout
 
 - `src/delta_db.cr`: library entrypoint and version constant.
-- `src/delta_db/`: identity, text, history, client, and storage modules; `history_engine.cr` contains the DAG and `storage_history.cr` its SQLite persistence; `client.cr`, `worktree.cr`, and `repository.cr` contain typed client models; `checkpoint.cr`, `replication.cr`, and `storage_replication.cr` contain checkpoint/sync support.
+- `src/delta_db/`: one file per primary type, named after it (`text_buffer.cr` → `TextBuffer`, `undo_history.cr` → `UndoHistory`, `client_buffer.cr` → `ClientBuffer`); identity types live in `ids.cr`, `timeline_id.cr`, `delta_batch_id.cr`, and `history_version.cr`.
+- Namespaces mirror directories: `history/` holds `DeltaDB::History` (`Dag`, `Batch`, `Timeline`, `Epoch`, `Snapshot`, `Record`, `MergeBase`); `checkpoint/` holds `DeltaDB::Checkpoint` (wire documents, `Codec`, `Publication`, `Publisher`); `replication/` holds `DeltaDB::Replication` (`Pack`, `PackDocument`, `PackCodec`, `Outbox`, `Outbox::Entry`, `Peer`, `Connection`, `Sync`); `storage/` reopens `Storage` with history and replication persistence.
+- Add new files to the explicit require list in `src/delta_db.cr`.
 - `spec/delta_db/`: unit and differential specs; `text_crdt_spec.cr` covers fragments, anchors, undo, and replica convergence; `history_dag_spec.cr` and `history_storage_spec.cr` cover DAG algorithms, packing, migrations, runs, and checkpoints; `client_models_spec.cr` covers typed deltas, worktrees, fragments, blobs, sealing, and repositories; `replication_spec.cr` covers checkpoint codecs, outbox, sync, and recovery.
 - `shard.yml`: Crystal and sqlite3 dependency declarations.
 
