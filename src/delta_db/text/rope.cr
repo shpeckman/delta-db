@@ -2,9 +2,9 @@
 module DeltaDB
   module Text
     class Rope
-      getter root : RopeNode?
+      getter root : Node?
 
-      def initialize(@root : RopeNode? = nil)
+      def initialize(@root : Node? = nil)
       end
 
       def self.empty : Rope
@@ -84,7 +84,7 @@ module DeltaDB
         Rope.point_utf16_to_offset(@root, point)
       end
 
-      private def append_to(io : IO, node : RopeNode?) : Nil
+      private def append_to(io : IO, node : Node?) : Nil
         case node
         when Leaf
           io << node.chunk.text
@@ -112,7 +112,7 @@ module DeltaDB
         chunks
       end
 
-      def self.from_chunks(chunks : Array(Chunk)) : RopeNode?
+      def self.from_chunks(chunks : Array(Chunk)) : Node?
         return nil if chunks.empty?
         build_balanced(chunks, 0, chunks.size)
       end
@@ -128,13 +128,13 @@ module DeltaDB
         end
       end
 
-      def self.concat(a : RopeNode?, b : RopeNode?) : RopeNode?
+      def self.concat(a : Node?, b : Node?) : Node?
         return b if a.nil?
         return a if b.nil?
         Concat.new(a, b)
       end
 
-      def self.slice_node(node : RopeNode?, start : Int32, bytesize : Int32) : RopeNode?
+      def self.slice_node(node : Node?, start : Int32, bytesize : Int32) : Node?
         return nil if node.nil? || bytesize <= 0
         case node
         when Leaf
@@ -153,7 +153,7 @@ module DeltaDB
         end
       end
 
-      def self.offset_to_point(node : RopeNode?, offset : Int32) : Point
+      def self.offset_to_point(node : Node?, offset : Int32) : Point
         case node
         when Leaf
           node.chunk.offset_to_point(offset)
@@ -169,7 +169,7 @@ module DeltaDB
         end
       end
 
-      def self.point_to_offset(node : RopeNode?, point : Point) : Int32
+      def self.point_to_offset(node : Node?, point : Point) : Int32
         case node
         when Leaf
           node.chunk.point_to_offset(point)
@@ -185,7 +185,7 @@ module DeltaDB
         end
       end
 
-      def self.offset_to_point_utf16(node : RopeNode?, offset : Int32) : PointUtf16
+      def self.offset_to_point_utf16(node : Node?, offset : Int32) : PointUtf16
         case node
         when Leaf
           node.chunk.offset_to_point_utf16(offset)
@@ -201,7 +201,7 @@ module DeltaDB
         end
       end
 
-      def self.point_utf16_to_offset(node : RopeNode?, point : PointUtf16) : Int32
+      def self.point_utf16_to_offset(node : Node?, point : PointUtf16) : Int32
         case node
         when Leaf
           node.chunk.point_utf16_to_offset(point)

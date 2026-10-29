@@ -75,7 +75,7 @@ module DeltaDB
         reset_id
       end
 
-      def fork_timeline(source_id : TimelineId, target_id : TimelineId, at : HistoryVersion? = nil) : Timeline
+      def fork_timeline(source_id : TimelineId, target_id : TimelineId, at : Version? = nil) : Timeline
         source = @timelines.fetch(source_id) { raise NotFoundError.new("unknown timeline: #{source_id}") }
         create_timeline(target_id, at || source.head, source_id)
       end

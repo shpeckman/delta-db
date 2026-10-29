@@ -13,7 +13,7 @@ module DeltaDB
       @next_ordinal = 1u64
     end
 
-    def create(path : String, text : String = "", mode : FileMode = FileMode::File, line_ending : LineEnding? = nil) : Entry
+    def create(path : String, text : String = "", mode : FileMode = FileMode::File, line_ending : Text::LineEnding? = nil) : Entry
       @seal_state.ensure_mutable!
       if @files.has_key?(path)
         raise ArgumentError.new("path already exists: #{path}")
@@ -87,7 +87,7 @@ module DeltaDB
       @files[path]?.try(&.text)
     end
 
-    def blob(path : String) : BlobRef?
+    def blob(path : String) : Blob::Ref?
       required_file(path).blob
     end
 

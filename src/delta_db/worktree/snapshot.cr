@@ -8,7 +8,7 @@ module DeltaDB
       def initialize(@version : History::Version, @files : Array(Entry))
       end
 
-      def file(path : String) : WorktreeFile?
+      def file(path : String) : Entry?
         @files.find { |file| file.path == path }
       end
     end

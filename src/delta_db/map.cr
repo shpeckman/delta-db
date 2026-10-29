@@ -47,11 +47,11 @@ module DeltaDB
       @entries[key]?.try(&.register_value)
     end
 
-    def entry(key : String) : MapEntry?
+    def entry(key : String) : Entry?
       @entries[key]?
     end
 
-    def delete(key : String) : MapEntry?
+    def delete(key : String) : Entry?
       @seal_state.ensure_mutable!
       @entries.delete(key)
     end

@@ -18,7 +18,7 @@ module DeltaDB
     getter text : String
     getter ranges : Array(Range(Int32, Int32))
     getter new_text : Array(String)
-    getter blob : BlobRef?
+    getter blob : Blob::Ref?
     getter buffer : Buffer?
     getter nested_map : Map?
     getter worktree : Worktree?
@@ -30,7 +30,7 @@ module DeltaDB
       @text : String = "",
       @ranges : Array(Range(Int32, Int32)) = [] of Range(Int32, Int32),
       @new_text : Array(String) = [] of String,
-      @blob : BlobRef? = nil,
+      @blob : Blob::Ref? = nil,
       @buffer : Buffer? = nil,
       @nested_map : Map? = nil,
       @worktree : Worktree? = nil,

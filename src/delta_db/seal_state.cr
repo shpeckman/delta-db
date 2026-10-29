@@ -1,8 +1,8 @@
 # src/delta_db/seal_state.cr
 module DeltaDB
   class SealState
-    getter history_version : HistoryVersion? = nil
-    getter global_version : Global? = nil
+    getter history_version : History::Version? = nil
+    getter global_version : VersionVector? = nil
 
     def sealed? : Bool
       !@history_version.nil? || !@global_version.nil?

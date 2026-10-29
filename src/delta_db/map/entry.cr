@@ -12,7 +12,7 @@ module DeltaDB
 
       getter kind : Kind
       getter register_value : String?
-      getter blob : BlobRef?
+      getter blob : Blob::Ref?
       getter buffer : Buffer?
       getter nested_map : Map?
       getter worktree : Worktree?
@@ -22,7 +22,7 @@ module DeltaDB
         @kind : Kind,
         @version : VersionVector,
         @register_value : String? = nil,
-        @blob : BlobRef? = nil,
+        @blob : Blob::Ref? = nil,
         @buffer : Buffer? = nil,
         @nested_map : Map? = nil,
         @worktree : Worktree? = nil,

@@ -7,7 +7,7 @@ module DeltaDB
       getter history : History::Snapshot
       getter entries : Hash(String, Map::Entry)
       getter blobs : Hash(String, Bytes)
-      getter sealed_version : HistoryVersion?
+      getter sealed_version : History::Version?
 
       def initialize(
         @local_id : LocalRepositoryId,
@@ -15,7 +15,7 @@ module DeltaDB
         @history : History::Snapshot,
         @entries : Hash(String, Map::Entry),
         @blobs : Hash(String, Bytes),
-        @sealed_version : HistoryVersion? = nil,
+        @sealed_version : History::Version? = nil,
       )
       end
     end

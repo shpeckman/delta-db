@@ -30,7 +30,7 @@ module DeltaDB
       record
     end
 
-    def delete(id : Id) : FragmentRecord?
+    def delete(id : Id) : Record?
       @aliases.delete(id)
       @records.delete(id)
     end

@@ -5,7 +5,7 @@ module DeltaDB
       property path : String
       property kind : FileMode
       property text : String?
-      property blob : BlobRef?
+      property blob : Blob::Ref?
       property symlink_target : String?
       property line_ending : Text::LineEnding
 
@@ -13,7 +13,7 @@ module DeltaDB
         @path : String,
         @kind : FileMode = FileMode::File,
         @text : String? = nil,
-        @blob : BlobRef? = nil,
+        @blob : Blob::Ref? = nil,
         @symlink_target : String? = nil,
         @line_ending : Text::LineEnding = Text::LineEnding::Lf,
       )

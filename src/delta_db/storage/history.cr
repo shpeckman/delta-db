@@ -165,7 +165,7 @@ module DeltaDB
       end
     end
 
-    def checkpoint_version(history : HistoryId) : HistoryVersion?
+    def checkpoint_version(history : HistoryId) : History::Version?
       key = @db.query_one?("SELECT history_key FROM histories WHERE history_uuid = ?", history.value.bytes.to_slice) do |rs|
         rs.read(Int64)
       end

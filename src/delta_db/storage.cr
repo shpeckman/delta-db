@@ -188,7 +188,7 @@ module DeltaDB
     end
 
     def append_delta(delta : Delta) : History::Version
-      result : HistoryVersion? = nil
+      result : History::Version? = nil
       @db.transaction do |tx|
         conn = tx.connection
         key = history_conn(conn, delta.history)
