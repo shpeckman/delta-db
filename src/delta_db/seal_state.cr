@@ -26,7 +26,7 @@ module DeltaDB
     end
 
     def ensure_mutable! : Nil
-      raise "object is sealed" if sealed?
+      raise SealedError.new("object is sealed") if sealed?
     end
   end
 end

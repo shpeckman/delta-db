@@ -13,7 +13,7 @@ module DeltaDB
     end
 
     def get(ref : BlobRef) : Bytes
-      @blobs.fetch(ref.digest) { raise "missing blob: #{ref.digest}" }
+      @blobs.fetch(ref.digest) { raise MissingBlobError.new("missing blob: #{ref.digest}") }
     end
 
     def contains?(ref : BlobRef) : Bool

@@ -22,7 +22,7 @@ module DeltaDB
     end
 
     def open_repository(id : LocalRepositoryId) : Repository
-      @store.get(id) || raise ArgumentError.new("missing repository: #{id}")
+      @store.get(id) || raise NotFoundError.new("missing repository: #{id}")
     end
 
     def open_shared_repository(remote_id : RemoteRepositoryId) : Repository

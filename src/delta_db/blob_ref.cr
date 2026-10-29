@@ -9,7 +9,7 @@ module DeltaDB
     end
 
     def resolve(store : BlobStore) : Bytes
-      raise "blob is unavailable: #{@digest}" unless @available
+      raise MissingBlobError.new("blob is unavailable: #{@digest}") unless @available
       store.get(self)
     end
   end

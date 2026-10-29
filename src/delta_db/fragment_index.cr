@@ -102,7 +102,7 @@ module DeltaDB
     end
 
     def resolve(id : FragmentId) : String
-      record = @records.fetch(id) { raise ArgumentError.new("missing fragment: #{id}") }
+      record = @records.fetch(id) { raise NotFoundError.new("missing fragment: #{id}") }
       span = @aliases[id].span
       if span.begin > span.end || span.end > record.text.bytesize
         raise ArgumentError.new("alias span outside fragment: #{id}")
@@ -111,7 +111,7 @@ module DeltaDB
     end
 
     def splice(id : FragmentId, range : Range(UInt32, UInt32), text : String) : String
-      record = @records.fetch(id) { raise ArgumentError.new("missing fragment: #{id}") }
+      record = @records.fetch(id) { raise NotFoundError.new("missing fragment: #{id}") }
       if range.begin > range.end || range.end > record.text.bytesize
         raise ArgumentError.new("splice range outside fragment: #{id}")
       end
@@ -124,7 +124,7 @@ module DeltaDB
         raise ArgumentError.new("edit ranges must be sorted and non-overlapping")
       end
       unless @records.has_key?(plan.fragment_id)
-        raise ArgumentError.new("missing fragment: #{plan.fragment_id}")
+        raise NotFoundError.new("missing fragment: #{plan.fragment_id}")
       end
 
       plan.splices.reverse_each do |splice|

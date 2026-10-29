@@ -1,4 +1,5 @@
 # src/delta_db.cr
+require "./delta_db/error"
 require "./delta_db/point"
 require "./delta_db/point_utf16"
 require "./delta_db/offset_utf16"

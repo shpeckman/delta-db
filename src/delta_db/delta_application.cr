@@ -15,10 +15,10 @@ module DeltaDB
       when ClientOperationKind::SetWorktree
         target.set_worktree(operation.key, operation.worktree.not_nil!)
       when ClientOperationKind::EditBuffer
-        buffer = target.entry(operation.key).try(&.buffer) || raise ArgumentError.new("missing buffer: #{operation.key}")
+        buffer = target.entry(operation.key).try(&.buffer) || raise NotFoundError.new("missing buffer: #{operation.key}")
         buffer.edit_as_actor(operation.ranges.zip(operation.new_text).to_a)
       when ClientOperationKind::EditWorktree
-        worktree = target.entry(operation.key).try(&.worktree) || raise ArgumentError.new("missing worktree: #{operation.key}")
+        worktree = target.entry(operation.key).try(&.worktree) || raise NotFoundError.new("missing worktree: #{operation.key}")
         worktree.apply(operation.file_delta.not_nil!)
       when ClientOperationKind::Delete
         target.delete(operation.key)

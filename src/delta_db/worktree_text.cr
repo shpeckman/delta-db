@@ -10,7 +10,7 @@ module DeltaDB
 
     def open(path : String, replica_id : ReplicaId = ReplicaId::LOCAL) : ClientBuffer
       @buffers[path] ||= begin
-        text = @worktree.read(path) || raise ArgumentError.new("missing text file: #{path}")
+        text = @worktree.read(path) || raise NotFoundError.new("missing text file: #{path}")
         id = BufferId.new(@next_buffer_id)
         @next_buffer_id += 1u64
         ClientBuffer.new(id, replica_id, text)
@@ -21,7 +21,7 @@ module DeltaDB
       if buffer = @buffers[path]?
         buffer.text
       else
-        @worktree.read(path) || raise ArgumentError.new("missing text file: #{path}")
+        @worktree.read(path) || raise NotFoundError.new("missing text file: #{path}")
       end
     end
 
@@ -30,7 +30,7 @@ module DeltaDB
     end
 
     def save(path : String) : Nil
-      buffer = @buffers.fetch(path) { raise ArgumentError.new("buffer is not open: #{path}") }
+      buffer = @buffers.fetch(path) { raise NotFoundError.new("buffer is not open: #{path}") }
       @worktree.apply(EditFileDelta.new(path, buffer.text))
     end
 

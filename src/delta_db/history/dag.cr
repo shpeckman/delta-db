@@ -74,19 +74,19 @@ module DeltaDB
       end
 
       def reset_timeline(id : TimelineId, origin : HistoryVersion) : TimelineId
-        source = @timelines.fetch(id) { raise ArgumentError.new("unknown timeline: #{id}") }
+        source = @timelines.fetch(id) { raise NotFoundError.new("unknown timeline: #{id}") }
         reset_id = TimelineId.new(id.uuid, source.reset_generation + 1u32)
         create_timeline(reset_id, origin, id)
         reset_id
       end
 
       def fork_timeline(source_id : TimelineId, target_id : TimelineId, at : HistoryVersion? = nil) : Timeline
-        source = @timelines.fetch(source_id) { raise ArgumentError.new("unknown timeline: #{source_id}") }
+        source = @timelines.fetch(source_id) { raise NotFoundError.new("unknown timeline: #{source_id}") }
         create_timeline(target_id, at || source.head, source_id)
       end
 
       def timeline_version(id : TimelineId) : HistoryVersion
-        @timelines.fetch(id) { raise ArgumentError.new("unknown timeline: #{id}") }.head
+        @timelines.fetch(id) { raise NotFoundError.new("unknown timeline: #{id}") }.head
       end
 
       def timeline_version : HistoryVersion
@@ -98,7 +98,7 @@ module DeltaDB
       end
 
       def timeline_parent_id(id : TimelineId) : TimelineId?
-        @timelines.fetch(id) { raise ArgumentError.new("unknown timeline: #{id}") }.parent
+        @timelines.fetch(id) { raise NotFoundError.new("unknown timeline: #{id}") }.parent
       end
 
       def timeline_lineage(id : TimelineId) : Array(TimelineId)

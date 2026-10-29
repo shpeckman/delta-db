@@ -48,7 +48,7 @@ describe "typed client models" do
     buffer.fragments.map(&.text).join.should eq "aXbc"
     buffer.seal
     buffer.sealed?.should be_true
-    expect_raises(Exception) { buffer.edit_as_actor([{0...0, "Y"}]) }
+    expect_raises(DeltaDB::SealedError) { buffer.edit_as_actor([{0...0, "Y"}]) }
   end
 
   it "applies typed deltas through replicas and DAG history" do
@@ -73,7 +73,7 @@ describe "typed client models" do
 
     replica.apply_history_delta(client_delta(history_id, timeline, actor, next_timestamp(clock), DeltaDB::ClientOperation.seal))
     replica.sealed?.should be_true
-    expect_raises(Exception) do
+    expect_raises(DeltaDB::SealedError) do
       replica.apply_history_delta(client_delta(history_id, timeline, actor, next_timestamp(clock), DeltaDB::ClientOperation.register("blocked", "yes")))
     end
   end
@@ -100,7 +100,7 @@ describe "typed client models" do
     worktree.apply(DeltaDB::DeleteDelta.new("src/b.txt"))
     worktree.read("src/b.txt").should be_nil
     worktree.seal
-    expect_raises(Exception) { worktree.apply(DeltaDB::CreateDirDelta.new("blocked")) }
+    expect_raises(DeltaDB::SealedError) { worktree.apply(DeltaDB::CreateDirDelta.new("blocked")) }
   end
 
   it "edits worktree text and builds fragment indexes" do

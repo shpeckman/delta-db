@@ -40,10 +40,10 @@ module DeltaDB
       when EditFileDelta
         write(delta.path, delta.new_text)
       when DeleteDelta
-        @files.delete(delta.path) || raise ArgumentError.new("missing path: #{delta.path}")
+        @files.delete(delta.path) || raise NotFoundError.new("missing path: #{delta.path}")
         advance_version
       when RenameDelta
-        file = @files.delete(delta.old_path) || raise ArgumentError.new("missing path: #{delta.old_path}")
+        file = @files.delete(delta.old_path) || raise NotFoundError.new("missing path: #{delta.old_path}")
         if @files.has_key?(delta.new_path)
           raise ArgumentError.new("path already exists: #{delta.new_path}")
         end
@@ -112,7 +112,7 @@ module DeltaDB
     end
 
     private def required_file(path : String) : WorktreeFile
-      @files.fetch(path) { raise ArgumentError.new("missing path: #{path}") }
+      @files.fetch(path) { raise NotFoundError.new("missing path: #{path}") }
     end
 
     private def advance_version : Nil

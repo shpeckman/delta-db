@@ -159,16 +159,16 @@ module DeltaDB
       previous_id = Locator.min
       @fragments.each do |fragment|
         if fragment.id <= previous_id
-          raise "fragment ids are not strictly ordered"
+          raise InvariantError.new("fragment ids are not strictly ordered")
         end
         if fragment.bytesize != fragment.text.bytesize
-          raise "fragment length does not match its text"
+          raise InvariantError.new("fragment length does not match its text")
         end
         previous_id = fragment.id
       end
       rebuild = fragment_text
       if rebuild[0] != text || rebuild[1] != deleted
-        raise "fragment text does not match snapshot ropes"
+        raise InvariantError.new("fragment text does not match snapshot ropes")
       end
     end
 
