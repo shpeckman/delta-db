@@ -50,12 +50,8 @@ module DeltaDB
         @max_timestamp = Math.max(@max_timestamp, batch.id.ordinal)
         @epoch_count = Math.max(@epoch_count, batch.epoch)
         timeline = @timelines[batch.timeline]
-        timeline.head = if version_reaches(timeline.head, batch.parents)
-                          HistoryVersion.from_id(batch.id)
-                        else
-                          timeline.head.union(HistoryVersion.from_id(batch.id))
-                        end
-        @timelines[batch.timeline] = timeline
+        head = version_reaches(timeline.head, batch.parents) ? HistoryVersion.from_id(batch.id) : timeline.head.union(batch.id)
+        @timelines[batch.timeline] = timeline.with_head(head)
       end
 
       def insert_on_timeline(batch : Batch) : Nil
@@ -65,8 +61,7 @@ module DeltaDB
         end
 
         insert_globally(batch)
-        timeline.head = HistoryVersion.from_id(batch.id)
-        @timelines[batch.timeline] = timeline
+        @timelines[batch.timeline] = @timelines[batch.timeline].with_head(HistoryVersion.from_id(batch.id))
       end
 
       def advance_timeline(batch : Batch) : Nil
@@ -225,9 +220,7 @@ module DeltaDB
           pending.delete(batch)
         end
         snapshot.timelines.each do |timeline|
-          restored = @timelines[timeline.id]
-          restored.head = timeline.head
-          @timelines[timeline.id] = restored
+          @timelines[timeline.id] = @timelines[timeline.id].with_head(timeline.head)
         end
       end
 
@@ -250,10 +243,8 @@ module DeltaDB
           pending.delete(batch)
         end
         snapshot.timelines.each do |timeline|
-          existing = @timelines[timeline.id]
           previous = previous_heads[timeline.id]?
-          existing.head = previous ? previous.union(timeline.head) : timeline.head
-          @timelines[timeline.id] = existing
+          @timelines[timeline.id] = @timelines[timeline.id].with_head(previous ? previous.union(timeline.head) : timeline.head)
         end
         snapshot.epochs.each do |epoch|
           @epochs << epoch unless @epochs.any? { |existing| existing.epoch == epoch.epoch }

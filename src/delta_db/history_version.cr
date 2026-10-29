@@ -45,11 +45,8 @@ module DeltaDB
       @ids.includes?(id)
     end
 
-    def observe(id : DeltaBatchId) : Nil
-      return if contains?(id)
-
-      @ids << id
-      @ids.sort!
+    def union(id : DeltaBatchId) : HistoryVersion
+      contains?(id) ? self : HistoryVersion.new(@ids.dup << id)
     end
 
     def union(other : HistoryVersion) : HistoryVersion

@@ -116,7 +116,7 @@ module DeltaDB
     end
 
     private def advance_version : Nil
-      @version.observe(DeltaBatchId.new(@timeline.uuid, @next_ordinal))
+      @version = @version.union(DeltaBatchId.new(@timeline.uuid, @next_ordinal))
       @next_ordinal += 1u64
     end
   end

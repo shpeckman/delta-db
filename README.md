@@ -11,7 +11,7 @@ crystal spec
 
 ## Identity and versions
 
-`HistoryVersion` is a sorted, deduplicated set of `DeltaBatchId` values. Use `from_id`, `from_ids`, `observe`, `union`, and `contains?` to construct and inspect versions.
+`HistoryVersion` is a sorted, deduplicated set of `DeltaBatchId` values. Versions are immutable: `from_id`, `from_ids`, and `union` (with a `DeltaBatchId` or another `HistoryVersion`) return new values; `contains?`, `size`, and `empty?` inspect them.
 
 Persisted version text is a comma-separated list of `actor_ordinal:timestamp` entries. `encode_version_text` accepts a `Hash(UUID, Int64)` keyed by timeline UUID. `decode_version_text` accepts a `Hash(Int64, TimelineId)` keyed by actor ordinal. Empty text represents an empty version. Malformed entries and unknown actors raise `ArgumentError`.
 
