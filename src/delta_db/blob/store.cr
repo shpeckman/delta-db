@@ -4,29 +4,43 @@ require "digest/sha256"
 module DeltaDB
   module Blob
     class Store
-      def initialize(@blobs : Hash(String, Bytes) = {} of String => Bytes)
+      getter backend : Memory | Disk
+
+      def initialize(blobs : Hash(String, Bytes) = {} of String => Bytes)
+        @backend = Memory.new(blobs)
+      end
+
+      def initialize(@backend : Memory | Disk)
+      end
+
+      def self.open(root : String) : Store
+        new(Disk.new(root))
       end
 
       def put(data : Bytes) : Ref
         digest = Digest::SHA256.hexdigest(data)
-        @blobs[digest] = data.dup
+        @backend.write(digest, data)
         Ref.new(digest, data.size.to_u64)
       end
 
       def get(ref : Ref) : Bytes
-        @blobs.fetch(ref.digest) { raise MissingBlobError.new("missing blob: #{ref.digest}") }
+        read(ref, &.dup)
+      end
+
+      def read(ref : Ref, & : Bytes -> T) : T forall T
+        @backend.read(ref.digest) { |bytes| yield bytes }
       end
 
       def contains?(ref : Ref) : Bool
-        @blobs.has_key?(ref.digest)
+        @backend.contains?(ref.digest)
       end
 
       def snapshot : Hash(String, Bytes)
-        @blobs.transform_values(&.dup)
+        @backend.snapshot
       end
 
       def restore(blobs : Hash(String, Bytes)) : Nil
-        @blobs = blobs.transform_values(&.dup)
+        @backend.restore(blobs)
       end
     end
   end
