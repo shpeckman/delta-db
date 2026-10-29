@@ -9,8 +9,8 @@ private def replication_version(*ids : DeltaDB::DeltaBatchId) : DeltaDB::History
   DeltaDB::HistoryVersion.from_ids(ids.to_a)
 end
 
-private def replication_batch(timeline : DeltaDB::TimelineId, ordinal : UInt64, parents : DeltaDB::HistoryVersion = DeltaDB::HistoryVersion.new, epoch : UInt64 = 0u64) : DeltaDB::HistoryDeltaBatch
-  DeltaDB::HistoryDeltaBatch.new(
+private def replication_batch(timeline : DeltaDB::TimelineId, ordinal : UInt64, parents : DeltaDB::HistoryVersion = DeltaDB::HistoryVersion.new, epoch : UInt64 = 0u64) : DeltaDB::History::Batch
+  DeltaDB::History::Batch.new(
     DeltaDB::DeltaBatchId.new(timeline.uuid, ordinal),
     timeline,
     DeltaDB::ActorUuid.new(timeline.uuid),
@@ -20,12 +20,12 @@ private def replication_batch(timeline : DeltaDB::TimelineId, ordinal : UInt64, 
   )
 end
 
-private def replication_dag(history : DeltaDB::HistoryId) : DeltaDB::HistoryDag
-  dag = DeltaDB::HistoryDag.new(history)
+private def replication_dag(history : DeltaDB::HistoryId) : DeltaDB::History::Dag
+  dag = DeltaDB::History::Dag.new(history)
   timeline = replication_timeline(1u64)
   root = replication_batch(timeline, 1u64)
   delta = DeltaDB::Delta.new(history, timeline, root.actor, DeltaDB::Lamport.new(DeltaDB::ReplicaId::LOCAL, 1u32), Bytes[0u8, 1u8, 255u8])
-  root = DeltaDB::HistoryDeltaBatch.new(root.id, root.timeline, root.actor, root.parents, [delta], root.epoch)
+  root = DeltaDB::History::Batch.new(root.id, root.timeline, root.actor, root.parents, [delta], root.epoch)
   child = replication_batch(timeline, 2u64, replication_version(root.id), 1u64)
   dag.insert_on_timeline(root)
   dag.insert_on_timeline(child)
@@ -36,45 +36,45 @@ end
 describe "checkpoint and replication" do
   it "round-trips deterministic checkpoints with binary payloads" do
     dag = replication_dag(DeltaDB::HistoryId.random)
-    encoded = DeltaDB::CheckpointCodec.encode(dag.checkpoint)
-    decoded = DeltaDB::CheckpointCodec.decode(encoded)
+    encoded = DeltaDB::Checkpoint::Codec.encode(dag.checkpoint)
+    decoded = DeltaDB::Checkpoint::Codec.decode(encoded)
 
-    DeltaDB::CheckpointCodec.encode(decoded).should eq encoded
+    DeltaDB::Checkpoint::Codec.encode(decoded).should eq encoded
     decoded.history_id.should eq dag.history_id
     decoded.batches.size.should eq 2
     decoded.timelines.size.should eq 1
     decoded.epochs.size.should eq 1
     decoded.batches.first.deltas.first.value.should eq Bytes[0u8, 1u8, 255u8]
-    expect_raises(ArgumentError) { DeltaDB::CheckpointCodec.decode("not-a-checkpoint") }
+    expect_raises(ArgumentError) { DeltaDB::Checkpoint::Codec.decode("not-a-checkpoint") }
   end
 
   it "publishes and installs checkpoints through explicit phases" do
     dag = replication_dag(DeltaDB::HistoryId.random)
-    publisher = DeltaDB::CheckpointPublisher.new
+    publisher = DeltaDB::Checkpoint::Publisher.new
     publication = publisher.prepare(dag)
-    publication.phase.should eq DeltaDB::CheckpointPublicationPhase::Prepared
+    publication.phase.should eq DeltaDB::Checkpoint::Publication::Phase::Prepared
 
-    publisher.publish(publication.id).phase.should eq DeltaDB::CheckpointPublicationPhase::Published
+    publisher.publish(publication.id).phase.should eq DeltaDB::Checkpoint::Publication::Phase::Published
     restored = publisher.install(publication.id)
     restored.timeline_version.should eq dag.timeline_version
-    publication.phase.should eq DeltaDB::CheckpointPublicationPhase::Installed
+    publication.phase.should eq DeltaDB::Checkpoint::Publication::Phase::Installed
     expect_raises(ArgumentError) { publisher.install(publication.id) }
   end
 
   it "persists replication outbox state through failure and retry" do
     storage = DeltaDB::Storage.in_memory
     dag = replication_dag(DeltaDB::HistoryId.random)
-    outbox = DeltaDB::ReplicationOutbox.new(storage)
-    entry = outbox.append(DeltaDB::ReplicationPacker.pack(dag, DeltaDB::HistoryVersion.new))
+    outbox = DeltaDB::Replication::Outbox.new(storage)
+    entry = outbox.append(DeltaDB::Replication::Pack.from(dag, DeltaDB::HistoryVersion.new))
 
     outbox.size.should eq 1
     outbox.fail(entry.id, "transport failed")
     outbox.pending.should be_empty
     outbox.retry(entry.id)
 
-    recovered = DeltaDB::ReplicationOutbox.new(storage)
+    recovered = DeltaDB::Replication::Outbox.new(storage)
     recovered.size.should eq 1
-    recovered.pending.first.state.should eq DeltaDB::ReplicationOutboxState::Pending
+    recovered.pending.first.state.should eq DeltaDB::Replication::Outbox::Entry::State::Pending
     recovered.acknowledge(entry.id)
     recovered.size.should eq 0
   end
@@ -82,9 +82,9 @@ describe "checkpoint and replication" do
   it "synchronizes divergent histories and duplicate packs idempotently" do
     history = DeltaDB::HistoryId.random
     local = replication_dag(history)
-    remote = DeltaDB::RemotePeer.new
+    remote = DeltaDB::Replication::Peer.new
     storage = DeltaDB::Storage.in_memory
-    sync = DeltaDB::RemoteSync.new(storage, remote)
+    sync = DeltaDB::Replication::Sync.new(storage, remote)
 
     sync.push_history(local)
     sync.outbox.size.should eq 0
@@ -101,14 +101,14 @@ describe "checkpoint and replication" do
     remote.install_pack(pack)
     remote.install_pack(pack)
     remote.packs.size.should eq 2
-    sync.connection_state(history).status.should eq DeltaDB::HistoryConnectionStatus::Synced
+    sync.connection_state(history).status.should eq DeltaDB::Replication::Connection::Status::Synced
   end
 
   it "preserves remote reset and fork lineage" do
     history = DeltaDB::HistoryId.random
     local = replication_dag(history)
-    remote = DeltaDB::RemotePeer.new
-    sync = DeltaDB::RemoteSync.new(DeltaDB::Storage.in_memory, remote)
+    remote = DeltaDB::Replication::Peer.new
+    sync = DeltaDB::Replication::Sync.new(DeltaDB::Storage.in_memory, remote)
     timeline = replication_timeline(1u64)
     root_id = DeltaDB::DeltaBatchId.new(timeline.uuid, 1u64)
     sync.push_history(local)
@@ -128,13 +128,13 @@ describe "checkpoint and replication" do
   it "recovers persisted connection state" do
     history = DeltaDB::HistoryId.random
     local = replication_dag(history)
-    remote = DeltaDB::RemotePeer.new
+    remote = DeltaDB::Replication::Peer.new
     storage = DeltaDB::Storage.in_memory
-    sync = DeltaDB::RemoteSync.new(storage, remote)
+    sync = DeltaDB::Replication::Sync.new(storage, remote)
     sync.push_history(local)
 
-    recovered = DeltaDB::RemoteSync.new(storage, remote).connection_state(history)
-    recovered.status.should eq DeltaDB::HistoryConnectionStatus::Synced
+    recovered = DeltaDB::Replication::Sync.new(storage, remote).connection_state(history)
+    recovered.status.should eq DeltaDB::Replication::Connection::Status::Synced
     recovered.local_version.should eq local.timeline_version
     recovered.remote_version.should eq local.timeline_version
   end
@@ -142,25 +142,25 @@ describe "checkpoint and replication" do
   it "persists checkpoint publication state" do
     storage = DeltaDB::Storage.in_memory
     dag = replication_dag(DeltaDB::HistoryId.random)
-    publication = DeltaDB::CheckpointPublication.new(UUID.random.to_s, dag.history_id, dag.timeline_version, DeltaDB::CheckpointCodec.encode(dag.checkpoint))
+    publication = DeltaDB::Checkpoint::Publication.new(UUID.random.to_s, dag.history_id, dag.timeline_version, DeltaDB::Checkpoint::Codec.encode(dag.checkpoint))
 
     storage.insert_checkpoint_publication(publication)
-    storage.transition_checkpoint_publication_phase(publication.id, DeltaDB::CheckpointPublicationPhase::Published)
+    storage.transition_checkpoint_publication_phase(publication.id, DeltaDB::Checkpoint::Publication::Phase::Published)
     loaded = storage.checkpoint_publication(publication.id).not_nil!
 
-    loaded.phase.should eq DeltaDB::CheckpointPublicationPhase::Published
+    loaded.phase.should eq DeltaDB::Checkpoint::Publication::Phase::Published
     loaded.version.should eq dag.timeline_version
-    DeltaDB::HistoryDag.from_snapshot(DeltaDB::CheckpointCodec.decode(loaded.encoded)).timeline_version.should eq dag.timeline_version
+    DeltaDB::History::Dag.from_snapshot(DeltaDB::Checkpoint::Codec.decode(loaded.encoded)).timeline_version.should eq dag.timeline_version
     storage.checkpoint_publications.map(&.id).should contain publication.id
   end
 
   it "rejects corrupted replication packs without losing state" do
     storage = DeltaDB::Storage.in_memory
     dag = replication_dag(DeltaDB::HistoryId.random)
-    outbox = DeltaDB::ReplicationOutbox.new(storage)
-    entry = outbox.append(DeltaDB::ReplicationPacker.pack(dag, DeltaDB::HistoryVersion.new))
+    outbox = DeltaDB::Replication::Outbox.new(storage)
+    entry = outbox.append(DeltaDB::Replication::Pack.from(dag, DeltaDB::HistoryVersion.new))
 
-    expect_raises(JSON::ParseException) { DeltaDB::ReplicationPackCodec.decode("{}") }
+    expect_raises(JSON::ParseException) { DeltaDB::Replication::PackCodec.decode("{}") }
     outbox.retry(entry.id)
     outbox.pending.first.pack.snapshot.history_id.should eq dag.history_id
     outbox.size.should eq 1

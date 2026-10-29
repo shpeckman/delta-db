@@ -1,40 +1,5 @@
 # src/delta_db/worktree.cr
 module DeltaDB
-  class WorktreeFile
-    property path : String
-    property kind : FileMode
-    property text : String?
-    property blob : BlobRef?
-    property symlink_target : String?
-    property line_ending : LineEnding
-
-    def initialize(
-      @path : String,
-      @kind : FileMode = FileMode::File,
-      @text : String? = nil,
-      @blob : BlobRef? = nil,
-      @symlink_target : String? = nil,
-      @line_ending : LineEnding = LineEnding::Lf,
-    )
-    end
-
-    def copy : WorktreeFile
-      WorktreeFile.new(@path, @kind, @text, @blob, @symlink_target, @line_ending)
-    end
-  end
-
-  class WorktreeSnapshot
-    getter version : HistoryVersion
-    getter files : Array(WorktreeFile)
-
-    def initialize(@version : HistoryVersion, @files : Array(WorktreeFile))
-    end
-
-    def file(path : String) : WorktreeFile?
-      @files.find { |file| file.path == path }
-    end
-  end
-
   class Worktree
     getter files : Hash(String, WorktreeFile)
     getter blob_store : BlobStore
@@ -153,49 +118,6 @@ module DeltaDB
     private def advance_version : Nil
       @version.observe(DeltaBatchId.new(@timeline.uuid, @next_ordinal))
       @next_ordinal += 1u64
-    end
-  end
-
-  class WorktreeText
-    getter worktree : Worktree
-
-    def initialize(@worktree : Worktree)
-      @buffers = {} of String => ClientBuffer
-      @next_buffer_id = 1u64
-    end
-
-    def open(path : String, replica_id : ReplicaId = ReplicaId::LOCAL) : ClientBuffer
-      @buffers[path] ||= begin
-        text = @worktree.read(path) || raise ArgumentError.new("missing text file: #{path}")
-        id = BufferId.new(@next_buffer_id)
-        @next_buffer_id += 1u64
-        ClientBuffer.new(id, replica_id, text)
-      end
-    end
-
-    def read(path : String) : String
-      if buffer = @buffers[path]?
-        buffer.text
-      else
-        @worktree.read(path) || raise ArgumentError.new("missing text file: #{path}")
-      end
-    end
-
-    def edit(path : String, ranges : Array(Range(Int32, Int32)), new_text : Array(String), replica_id : ReplicaId = ReplicaId::LOCAL) : EditOperation
-      open(path, replica_id).edit_as_actor(ranges.zip(new_text).to_a)
-    end
-
-    def save(path : String) : Nil
-      buffer = @buffers.fetch(path) { raise ArgumentError.new("buffer is not open: #{path}") }
-      @worktree.apply(EditFileDelta.new(path, buffer.text))
-    end
-
-    def fragment_index(path : String) : FragmentIndex
-      FragmentIndex.from_fragments(open(path).fragments)
-    end
-
-    def snapshot : WorktreeSnapshot
-      @worktree.snapshot
     end
   end
 end

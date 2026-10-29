@@ -5,8 +5,8 @@ private def spec_timeline(number : UInt64, generation : UInt32 = 0u32) : DeltaDB
   DeltaDB::TimelineId.new(UUID.new("00000000-0000-0000-0000-#{number.to_s.rjust(12, '0')}"), generation)
 end
 
-private def spec_batch(timeline : DeltaDB::TimelineId, ordinal : UInt64, parents : DeltaDB::HistoryVersion = DeltaDB::HistoryVersion.new, epoch : UInt64 = 0u64) : DeltaDB::HistoryDeltaBatch
-  DeltaDB::HistoryDeltaBatch.new(
+private def spec_batch(timeline : DeltaDB::TimelineId, ordinal : UInt64, parents : DeltaDB::HistoryVersion = DeltaDB::HistoryVersion.new, epoch : UInt64 = 0u64) : DeltaDB::History::Batch
+  DeltaDB::History::Batch.new(
     DeltaDB::DeltaBatchId.new(timeline.uuid, ordinal),
     timeline,
     DeltaDB::ActorUuid.new(timeline.uuid),
@@ -20,10 +20,10 @@ private def version_of(*ids : DeltaDB::DeltaBatchId) : DeltaDB::HistoryVersion
   DeltaDB::HistoryVersion.from_ids(ids.to_a)
 end
 
-describe DeltaDB::HistoryDag do
+describe DeltaDB::History::Dag do
   it "walks ancestry and computes maximal common ancestors" do
     history = DeltaDB::HistoryId.random
-    dag = DeltaDB::HistoryDag.new(history)
+    dag = DeltaDB::History::Dag.new(history)
     timeline = spec_timeline(1u64)
     other = spec_timeline(2u64)
     root = spec_batch(timeline, 1u64)
@@ -40,14 +40,14 @@ describe DeltaDB::HistoryDag do
     dag.version_reaches(version_of(left.id), version_of(right.id)).should be_false
     dag.common_ancestor(version_of(left.id), version_of(right.id)).should eq version_of(root.id)
     dag.dominator(version_of(merge.id), version_of(right.id)).should eq version_of(right.id)
-    DeltaDB::MergeBaseResolver.merge_base(dag, version_of(left.id), version_of(right.id)).should eq version_of(root.id)
+    DeltaDB::History::MergeBase.resolve(dag, version_of(left.id), version_of(right.id)).should eq version_of(root.id)
     dag.delta_headers_difference(version_of(merge.id), version_of(root.id)).map(&.id).should eq [left.id, right.id, merge.id].sort
     dag.contains_version(version_of(root.id, merge.id)).should be_true
     dag.contains_version(version_of(root.id), timeline).should be_true
   end
 
   it "supports timeline reset, fork, lineage, and epochs" do
-    dag = DeltaDB::HistoryDag.new(DeltaDB::HistoryId.random)
+    dag = DeltaDB::History::Dag.new(DeltaDB::HistoryId.random)
     timeline = spec_timeline(1u64)
     root = spec_batch(timeline, 1u64)
     dag.insert_on_timeline(root)
@@ -69,7 +69,7 @@ describe DeltaDB::HistoryDag do
   end
 
   it "round-trips checkpoint DAG state and rejects missing parents" do
-    dag = DeltaDB::HistoryDag.new(DeltaDB::HistoryId.random)
+    dag = DeltaDB::History::Dag.new(DeltaDB::HistoryId.random)
     timeline = spec_timeline(1u64)
     root = spec_batch(timeline, 1u64)
     child = spec_batch(timeline, 2u64, version_of(root.id), 2u64)
@@ -77,7 +77,7 @@ describe DeltaDB::HistoryDag do
     dag.insert_on_timeline(child)
     dag.begin_epoch
 
-    restored = DeltaDB::HistoryDag.from_snapshot(dag.checkpoint)
+    restored = DeltaDB::History::Dag.from_snapshot(dag.checkpoint)
     restored.timeline_version(timeline).should eq dag.timeline_version(timeline)
     restored.batches.keys.sort.should eq dag.batches.keys.sort
     restored.epoch_count.should eq dag.epoch_count
