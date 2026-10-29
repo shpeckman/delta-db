@@ -1,3 +1,4 @@
+# src/delta_db/text.cr
 require "./delta_db/text/point"
 require "./delta_db/text/point_utf16"
 require "./delta_db/text/offset_utf16"
