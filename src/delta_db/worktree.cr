@@ -35,14 +35,14 @@ module DeltaDB
     def apply(delta : FileDelta) : Nil
       @seal_state.ensure_mutable!
       case delta
-      in FileDelta::CreateFile
+      when FileDelta::CreateFile
         create(delta.path, "", delta.mode, delta.line_endings)
-      in FileDelta::Edit
+      when FileDelta::Edit
         write(delta.path, delta.new_text)
-      in FileDelta::Delete
+      when FileDelta::Delete
         @files.delete(delta.path) || raise NotFoundError.new("missing path: #{delta.path}")
         advance_version
-      in FileDelta::Rename
+      when FileDelta::Rename
         file = @files.delete(delta.old_path) || raise NotFoundError.new("missing path: #{delta.old_path}")
         if @files.has_key?(delta.new_path)
           raise ArgumentError.new("path already exists: #{delta.new_path}")
@@ -50,7 +50,7 @@ module DeltaDB
         file.path = delta.new_path
         @files[delta.new_path] = file
         advance_version
-      in FileDelta::SetMode
+      when FileDelta::SetMode
         file = required_file(delta.path)
         file.kind = delta.mode
         unless delta.mode.file?
@@ -58,13 +58,13 @@ module DeltaDB
           file.blob = nil
         end
         advance_version
-      in FileDelta::SetLineEndings
+      when FileDelta::SetLineEndings
         file = required_file(delta.path)
         file.line_ending = delta.line_endings
         advance_version
-      in FileDelta::CreateDir
+      when FileDelta::CreateDir
         create(delta.path, mode: FileMode::Directory)
-      in FileDelta::CreateSymlink
+      when FileDelta::CreateSymlink
         if @files.has_key?(delta.path)
           raise ArgumentError.new("path already exists: #{delta.path}")
         end
