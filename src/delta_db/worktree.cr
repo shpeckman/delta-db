@@ -133,10 +133,3 @@ module DeltaDB
     end
   end
 end
-
-require "./worktree/entry"
-require "./worktree/snapshot"
-require "./worktree/editor"
-require "./worktree/disk"
-require "./worktree/disk/read_diagnostics"
-require "./worktree/git_attributes"
