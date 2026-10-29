@@ -1,4 +1,4 @@
-# spec/delta_db/git_attributes_spec.cr
+# spec/delta_db/worktree_git_attributes_spec.cr
 require "../spec_helper"
 
 describe DeltaDB::Worktree::GitAttributes do

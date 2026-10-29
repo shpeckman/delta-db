@@ -1,4 +1,4 @@
-# spec/delta_db/file_read_diagnostics_spec.cr
+# spec/delta_db/worktree_read_diagnostics_spec.cr
 require "../spec_helper"
 
 describe DeltaDB::Worktree::Disk::ReadDiagnostics do

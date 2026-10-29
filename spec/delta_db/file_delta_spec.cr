@@ -1,4 +1,4 @@
-# spec/delta_db/file_tree_spec.cr
+# spec/delta_db/file_delta_spec.cr
 require "../spec_helper"
 
 describe DeltaDB::FileMode do

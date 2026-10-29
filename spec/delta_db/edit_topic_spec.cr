@@ -1,4 +1,4 @@
-# spec/delta_db/subscription_spec.cr
+# spec/delta_db/edit_topic_spec.cr
 require "../spec_helper"
 
 describe DeltaDB::Text::EditTopic do

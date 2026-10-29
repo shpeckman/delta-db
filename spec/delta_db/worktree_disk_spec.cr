@@ -1,4 +1,4 @@
-# spec/delta_db/disk_worktree_fs_spec.cr
+# spec/delta_db/worktree_disk_spec.cr
 require "../spec_helper"
 
 describe DeltaDB::Worktree::Disk do
