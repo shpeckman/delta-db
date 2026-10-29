@@ -40,17 +40,17 @@ forked = dag.fork_timeline(timeline, DeltaDB::TimelineId.random)
 
 `History::Dag#checkpoint` returns a `History::Snapshot` containing batches, timelines, epochs, and counters. `History::Dag.from_snapshot` restores it with dependency ordering. `History::MergeBase.resolve(dag, a, b)` returns the maximal shared ancestor or `nil` when no shared batch exists.
 
-`Storage#save_dag`, `#load_dag`, and `#install_checkpoint` persist DAG state transactionally. `#checkpoint` reads a snapshot, while `#record_checkpoint` and `#checkpoint_version` persist/read a boundary. `pack_deltas` stores multiple payloads in one pack and `delta_value` transparently reads inline, overflow, or packed data. `append_run` and `load_runs` persist run headers and ordered segments. New databases use `Storage::CURRENT_SCHEMA_VERSION`; newer unsupported schemas are rejected.
+`Storage#save_dag`, `#load_dag`, and `#install_checkpoint` persist DAG state transactionally. `#checkpoint` reads a snapshot, while `#record_checkpoint` and `#checkpoint_version` persist/read a boundary. `pack_deltas` stores multiple payloads in one pack and `delta_value` transparently reads inline, overflow, or packed data; packed values are read through SQLite incremental blob I/O, so a lookup touches only its own slice of the pack. `append_run` and `load_runs` persist run headers and ordered segments. New databases use `Storage::CURRENT_SCHEMA_VERSION`; newer unsupported schemas are rejected.
 
 ## Client models and repositories
 
 `Map` stores typed register, blob, buffer, nested-map, and worktree entries. `Buffer` wraps the text CRDT engine with anchors, editing, snapshots, and sealing. `ClientOperation` (with `ClientOperation::Kind`) describes typed map/buffer/worktree changes; `Map#apply`, `Buffer#apply`, and `Worktree#apply` apply a `Delta` carrying one. Map entries are `Map::Entry` values tagged by `Map::Entry::Kind`. `Replica(T)` applies deltas into a `History::Dag`, tracks outgoing batches, and enforces sealing.
 
-`Blob::Store` content-addresses payloads with SHA-256 and returns `Blob::Ref` handles. `Worktree` applies `FileDelta` values (`FileDelta::CreateFile`, `Edit`, `Delete`, `Rename`, `SetMode`, `SetLineEndings`, `CreateDir`, `CreateSymlink`), maintains text and blobs, and restores `Worktree::Snapshot` values. `Worktree::Editor` edits files through client buffers and builds `FragmentIndex` values. `FragmentIndex#apply` executes sorted, non-overlapping `FragmentIndex::EditPlan` splices; `FragmentIndex.valid_ranges?` checks that ordering.
+`Blob::Store` content-addresses payloads with SHA-256 and returns `Blob::Ref` handles. `Blob::Store.new` keeps blobs in memory (`Blob::Store::Memory`); `Blob::Store.open(dir)` persists them as `dir/ab/cdef…` files written atomically (`Blob::Store::Disk`). `get`/`Ref#resolve` return an owned copy, while `read`/`Ref#read` yield a read-only zero-copy view (an `mmap` of the blob file on disk) that is valid only inside the block. A disk store owns its directory: `restore` removes blobs absent from the restored set, and `snapshot` materializes every blob. `Worktree` applies `FileDelta` values (`FileDelta::CreateFile`, `Edit`, `Delete`, `Rename`, `SetMode`, `SetLineEndings`, `CreateDir`, `CreateSymlink`), maintains text and blobs, and restores `Worktree::Snapshot` values. `Worktree::Editor` edits files through client buffers and builds `FragmentIndex` values. `FragmentIndex#apply` executes sorted, non-overlapping `FragmentIndex::EditPlan` splices; `FragmentIndex.valid_ranges?` checks that ordering.
 
 `Worktree::Disk` scans directories and loads files with `Worktree::Disk::ReadDiagnostics`. `Worktree::GitAttributes` parses git config booleans and `EolConfig` values.
 
-`Repository` combines a typed map, DAG replica, and blob store. `Repository::Snapshot` preserves all three. `Repository::Store` manages local/shared repositories, while `Client` applies local/remote batches and drains confirmed outgoing deltas.
+`Repository` combines a typed map, DAG replica, and blob store; `Repository.new`, `Repository.from_snapshot`, `Repository::Store#create`/`#open_shared`, and `Client#create_repository`/`#open_shared_repository` accept a `blob_store:` to back it with a disk store. `Repository::Snapshot` preserves all three. `Repository::Store` manages local/shared repositories, while `Client` applies local/remote batches and drains confirmed outgoing deltas.
 
 ```crystal
 client = DeltaDB::Client.new
@@ -81,7 +81,7 @@ Remote operations carry the sender's causal `version`. Operations arriving befor
 
 ## SQLite storage
 
-`Storage.in_memory` creates an isolated database. `Storage.open(path)` opens a file-backed database. `insert_delta` stores a delta and registers its actor. `append_delta` additionally registers the timeline, writes a version, and advances only that timeline's head.
+`Storage.in_memory` creates an isolated database. `Storage.open(path, mmap_size: Storage::DEFAULT_MMAP_SIZE)` opens a file-backed database and applies `PRAGMA mmap_size` (256 MiB by default, `0` disables) to every pooled connection; `Storage#mmap_size` reports the effective value, which SQLite caps at its compile-time maximum. `insert_delta` stores a delta and registers its actor. `append_delta` additionally registers the timeline, writes a version, and advances only that timeline's head.
 
 Batch IDs use the delta's Lamport timestamp. Version keys remain storage-local monotonic integers and are distinct from batch timestamps.
 
