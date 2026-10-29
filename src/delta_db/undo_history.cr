@@ -1,37 +1,26 @@
+# src/delta_db/undo_history.cr
 module DeltaDB
-  # A transaction grouping a set of edits for undo/redo.
-  #
-  # Port of `crates/text/src/text.rs` `Transaction`.
-  struct Transaction
-    getter id : Lamport
-    getter edit_ids : Array(Lamport)
-    getter start : Global
-
-    def initialize(@id : Lamport, @edit_ids : Array(Lamport) = [] of Lamport, @start : Global = Global.new)
-    end
-  end
-
-  # An entry on the undo/redo stack.
-  #
-  # Port of `crates/text/src/text.rs` `HistoryEntry`.
-  struct HistoryEntry
-    getter transaction : Transaction
-    property suppress_grouping : Bool
-
-    def initialize(@transaction : Transaction, @suppress_grouping : Bool = false)
-    end
-
-    def transaction_id : Lamport
-      @transaction.id
-    end
-  end
-
   # The undo/redo history of a buffer.
   #
   # Clean-room port of `crates/text/src/text.rs` `History`. The time-based
   # transaction grouping (`group_interval`, `Instant`) is dropped; the core
   # undo/redo stack + operations map semantics are preserved.
-  class History
+  class UndoHistory
+    # An entry on the undo/redo stack.
+    #
+    # Port of `crates/text/src/text.rs` `HistoryEntry`.
+    struct Entry
+      getter transaction : Transaction
+      property suppress_grouping : Bool
+
+      def initialize(@transaction : Transaction, @suppress_grouping : Bool = false)
+      end
+
+      def transaction_id : Lamport
+        @transaction.id
+      end
+    end
+
     getter base_text : Rope
     getter operations : Hash(Lamport, Operation)
 

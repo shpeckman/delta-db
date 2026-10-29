@@ -1,4 +1,4 @@
-# src/delta_db/storage_replication.cr
+# src/delta_db/storage/replication.cr
 module DeltaDB
   class Storage
     private def migrate_replication : Nil

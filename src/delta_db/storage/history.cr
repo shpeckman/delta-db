@@ -1,4 +1,4 @@
-# src/delta_db/storage_history.cr
+# src/delta_db/storage/history.cr
 module DeltaDB
   class Storage
     CURRENT_SCHEMA_VERSION = 3
