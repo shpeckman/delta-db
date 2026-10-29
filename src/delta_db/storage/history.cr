@@ -46,7 +46,7 @@ module DeltaDB
       self.schema_version = CURRENT_SCHEMA_VERSION if current < CURRENT_SCHEMA_VERSION
     end
 
-    def save_batch(history : HistoryId, batch : HistoryDeltaBatch) : Nil
+    def save_batch(history : HistoryId, batch : History::Batch) : Nil
       @db.transaction do |tx|
         conn = tx.connection
         key = history_conn(conn, history)
@@ -56,7 +56,7 @@ module DeltaDB
       end
     end
 
-    def save_dag(dag : HistoryDag) : Nil
+    def save_dag(dag : History::Dag) : Nil
       @db.transaction do |tx|
         conn = tx.connection
         key = history_conn(conn, dag.history_id)
@@ -64,15 +64,15 @@ module DeltaDB
       end
     end
 
-    def load_dag(history : HistoryId) : HistoryDag
-      result : HistoryDag? = nil
+    def load_dag(history : HistoryId) : History::Dag
+      result : History::Dag? = nil
       @db.transaction do |tx|
         conn = tx.connection
         key = conn.query_one?("SELECT history_key FROM histories WHERE history_uuid = ?", history.value.bytes.to_slice) do |rs|
           rs.read(Int64)
         end
         if key
-          timelines = [] of HistoryTimeline
+          timelines = [] of History::Timeline
           conn.query("SELECT timeline_actor, timeline_timestamp, version FROM history_timelines WHERE history_key = ?", key) do |rs|
             rs.each do
               timeline_actor = rs.read(Int64)
@@ -91,16 +91,16 @@ module DeltaDB
                 origin = decode_version_conn(conn, key, origin_text)
                 parent = timeline_actor_conn(conn, key, parent_actor) if parent_actor
               end
-              timelines << HistoryTimeline.new(id, head, origin, parent, reset_generation)
+              timelines << History::Timeline.new(id, head, origin, parent, reset_generation)
             end
           end
 
-          epochs = [] of HistoryEpoch
+          epochs = [] of History::Epoch
           conn.query("SELECT epoch, start_version FROM history_epochs WHERE history_key = ? ORDER BY epoch", key) do |rs|
-            rs.each { epochs << HistoryEpoch.new(rs.read(Int64).to_u64, decode_version_conn(conn, key, rs.read(String))) }
+            rs.each { epochs << History::Epoch.new(rs.read(Int64).to_u64, decode_version_conn(conn, key, rs.read(String))) }
           end
 
-          batches = [] of HistoryDeltaBatch
+          batches = [] of History::Batch
           conn.query("SELECT actor, timestamp, timeline_actor, timeline_timestamp, delta_actor, epoch, parents FROM history_delta_batches WHERE history_key = ? ORDER BY actor, timestamp", key) do |rs|
             rs.each do
               rs.read(Int64)
@@ -111,7 +111,7 @@ module DeltaDB
               epoch = rs.read(Int64).to_u64
               parents = decode_version_conn(conn, key, rs.read(String))
               timeline = timeline_actor_conn(conn, key, timeline_actor)
-              batches << HistoryDeltaBatch.new(
+              batches << History::Batch.new(
                 DeltaBatchId.new(timeline.uuid, timestamp),
                 timeline,
                 ActorUuid.new(UUID.new(delta_actor)),
@@ -125,20 +125,20 @@ module DeltaDB
           max_timestamp, epoch_count = conn.query_one("SELECT max_timestamp, epoch_count FROM histories WHERE history_key = ?", key) do |rs|
             {rs.read(Int64).to_u64, rs.read(Int64).to_u64}
           end
-          result = HistoryDag.from_snapshot(HistoryDagSnapshot.new(history, batches, timelines, epochs, max_timestamp, epoch_count))
+          result = History::Dag.from_snapshot(History::Snapshot.new(history, batches, timelines, epochs, max_timestamp, epoch_count))
         else
-          result = HistoryDag.new(history)
+          result = History::Dag.new(history)
         end
       end
       result.not_nil!
     end
 
-    def checkpoint(history : HistoryId) : HistoryDagSnapshot
+    def checkpoint(history : HistoryId) : History::Snapshot
       load_dag(history).checkpoint
     end
 
-    def install_checkpoint(snapshot : HistoryDagSnapshot) : Nil
-      dag = HistoryDag.from_snapshot(snapshot)
+    def install_checkpoint(snapshot : History::Snapshot) : Nil
+      dag = History::Dag.from_snapshot(snapshot)
       @db.transaction do |tx|
         conn = tx.connection
         key = history_conn(conn, snapshot.history_id)
@@ -245,7 +245,7 @@ module DeltaDB
       runs
     end
 
-    private def save_dag_conn(conn : DB::Connection, key : Int64, dag : HistoryDag) : Nil
+    private def save_dag_conn(conn : DB::Connection, key : Int64, dag : History::Dag) : Nil
       dag.timelines.each_value { |timeline| save_timeline_conn(conn, key, timeline) }
       dag.epochs.each do |epoch|
         start_version, _ = version_row_conn(conn, key, epoch.start_version)
@@ -266,7 +266,7 @@ module DeltaDB
       )
     end
 
-    private def insert_batch_conn(conn : DB::Connection, key : Int64, batch : HistoryDeltaBatch) : Nil
+    private def insert_batch_conn(conn : DB::Connection, key : Int64, batch : History::Batch) : Nil
       timeline_actor = actor_conn(conn, key, batch.timeline.to_s)
       actor_conn(conn, key, batch.actor.value.to_s)
       parents = encode_version_conn(conn, key, batch.parents)
@@ -288,7 +288,7 @@ module DeltaDB
       batch.deltas.each { |delta| insert_delta(conn, key, delta) }
     end
 
-    private def save_timeline_conn(conn : DB::Connection, key : Int64, timeline : HistoryTimeline) : Nil
+    private def save_timeline_conn(conn : DB::Connection, key : Int64, timeline : History::Timeline) : Nil
       timeline_actor = actor_conn(conn, key, timeline.id.to_s)
       version_text, version_key = version_row_conn(conn, key, timeline.head)
       conn.exec(
@@ -306,8 +306,8 @@ module DeltaDB
       )
     end
 
-    private def dag_timeline_for_batch(batch : HistoryDeltaBatch) : HistoryTimeline
-      HistoryTimeline.new(batch.timeline, HistoryVersion.from_id(batch.id), batch.parents)
+    private def dag_timeline_for_batch(batch : History::Batch) : History::Timeline
+      History::Timeline.new(batch.timeline, HistoryVersion.from_id(batch.id), batch.parents)
     end
 
     private def version_row_conn(conn : DB::Connection, key : Int64, version : HistoryVersion) : {String, Int64}

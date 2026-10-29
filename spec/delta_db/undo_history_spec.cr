@@ -1,8 +1,9 @@
+# spec/delta_db/undo_history_spec.cr
 require "../spec_helper"
 
-describe DeltaDB::History do
+describe DeltaDB::UndoHistory do
   it "tracks transactions and undo/redo" do
-    history = DeltaDB::History.new(DeltaDB::Rope.build("base"))
+    history = DeltaDB::UndoHistory.new(DeltaDB::Rope.build("base"))
     clock = DeltaDB::Clock.new
 
     id = history.start_transaction(clock)
@@ -31,7 +32,7 @@ describe DeltaDB::History do
   end
 
   it "drops empty transactions on end" do
-    history = DeltaDB::History.new(DeltaDB::Rope.build("base"))
+    history = DeltaDB::UndoHistory.new(DeltaDB::Rope.build("base"))
     clock = DeltaDB::Clock.new
     history.start_transaction(clock)
     entry = history.end_transaction
@@ -40,7 +41,7 @@ describe DeltaDB::History do
   end
 
   it "supports nested transactions" do
-    history = DeltaDB::History.new(DeltaDB::Rope.build("base"))
+    history = DeltaDB::UndoHistory.new(DeltaDB::Rope.build("base"))
     clock = DeltaDB::Clock.new
     history.start_transaction(clock).should_not be_nil
     history.start_transaction(clock).should be_nil # nested returns nil

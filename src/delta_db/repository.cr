@@ -11,7 +11,7 @@ module DeltaDB
       @blob_store = BlobStore.new
     end
 
-    def history : HistoryDag
+    def history : History::Dag
       @replica.history
     end
 
@@ -19,11 +19,11 @@ module DeltaDB
       @replica.value
     end
 
-    def apply(delta : Delta) : HistoryDeltaBatch
+    def apply(delta : Delta) : History::Batch
       @replica.apply_history_delta(delta)
     end
 
-    def apply_remote(batch : HistoryDeltaBatch) : Nil
+    def apply_remote(batch : History::Batch) : Nil
       @replica.apply_history_delta_batch(batch)
     end
 
@@ -40,7 +40,7 @@ module DeltaDB
 
     def self.from_snapshot(snapshot : RepositorySnapshot) : Repository
       repository = Repository.new(snapshot.local_id, snapshot.remote_id, snapshot.history.history_id)
-      repository.replica.history = HistoryDag.from_snapshot(snapshot.history)
+      repository.replica.history = History::Dag.from_snapshot(snapshot.history)
       repository.map.restore(snapshot.entries)
       repository.blob_store.restore(snapshot.blobs)
       if version = snapshot.sealed_version

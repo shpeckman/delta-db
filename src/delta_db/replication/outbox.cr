@@ -5,14 +5,14 @@ module DeltaDB
       def initialize(@storage : Storage)
       end
 
-      def append(pack : ReplicationPack) : ReplicationOutboxEntry
-        entry = ReplicationOutboxEntry.new(pack)
+      def append(pack : Pack) : Entry
+        entry = Entry.new(pack)
         @storage.insert_replication_outbox(entry)
         entry
       end
 
-      def pending : Array(ReplicationOutboxEntry)
-        @storage.replication_outbox_entries(ReplicationOutboxState::Pending)
+      def pending : Array(Entry)
+        @storage.replication_outbox_entries(Entry::State::Pending)
       end
 
       def size : Int32
@@ -20,15 +20,15 @@ module DeltaDB
       end
 
       def acknowledge(id : String) : Nil
-        @storage.update_replication_outbox_state(id, ReplicationOutboxState::Acknowledged)
+        @storage.update_replication_outbox_state(id, Entry::State::Acknowledged)
       end
 
       def fail(id : String, message : String) : Nil
-        @storage.update_replication_outbox_state(id, ReplicationOutboxState::Failed, message)
+        @storage.update_replication_outbox_state(id, Entry::State::Failed, message)
       end
 
       def retry(id : String) : Nil
-        @storage.update_replication_outbox_state(id, ReplicationOutboxState::Pending)
+        @storage.update_replication_outbox_state(id, Entry::State::Pending)
       end
     end
   end

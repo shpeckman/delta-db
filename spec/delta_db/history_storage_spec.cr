@@ -5,8 +5,8 @@ private def storage_timeline(number : UInt64, generation : UInt32 = 0u32) : Delt
   DeltaDB::TimelineId.new(UUID.new("00000000-0000-0000-0000-#{number.to_s.rjust(12, '0')}"), generation)
 end
 
-private def storage_batch(timeline : DeltaDB::TimelineId, ordinal : UInt64, parents : DeltaDB::HistoryVersion = DeltaDB::HistoryVersion.new, epoch : UInt64 = 0u64) : DeltaDB::HistoryDeltaBatch
-  DeltaDB::HistoryDeltaBatch.new(
+private def storage_batch(timeline : DeltaDB::TimelineId, ordinal : UInt64, parents : DeltaDB::HistoryVersion = DeltaDB::HistoryVersion.new, epoch : UInt64 = 0u64) : DeltaDB::History::Batch
+  DeltaDB::History::Batch.new(
     DeltaDB::DeltaBatchId.new(timeline.uuid, ordinal),
     timeline,
     DeltaDB::ActorUuid.new(timeline.uuid),
@@ -20,8 +20,8 @@ private def storage_version(*ids : DeltaDB::DeltaBatchId) : DeltaDB::HistoryVers
   DeltaDB::HistoryVersion.from_ids(ids.to_a)
 end
 
-private def populated_dag(history : DeltaDB::HistoryId) : DeltaDB::HistoryDag
-  dag = DeltaDB::HistoryDag.new(history)
+private def populated_dag(history : DeltaDB::HistoryId) : DeltaDB::History::Dag
+  dag = DeltaDB::History::Dag.new(history)
   timeline = storage_timeline(1u64)
   other = storage_timeline(2u64)
   root = storage_batch(timeline, 1u64)
@@ -105,7 +105,7 @@ describe "history DAG storage" do
   it "round-trips timeline reset and fork metadata" do
     storage = DeltaDB::Storage.in_memory
     history = DeltaDB::HistoryId.random
-    dag = DeltaDB::HistoryDag.new(history)
+    dag = DeltaDB::History::Dag.new(history)
     timeline = storage_timeline(1u64)
     root = storage_batch(timeline, 1u64)
     dag.insert_on_timeline(root)

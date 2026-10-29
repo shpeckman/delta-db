@@ -3,37 +3,37 @@ module DeltaDB
   module History
     class Dag
       getter history_id : HistoryId
-      getter batches : Hash(DeltaBatchId, HistoryDeltaBatch)
-      getter timelines : Hash(TimelineId, HistoryTimeline)
-      getter epochs : Array(HistoryEpoch)
+      getter batches : Hash(DeltaBatchId, Batch)
+      getter timelines : Hash(TimelineId, Timeline)
+      getter epochs : Array(Epoch)
       getter max_timestamp : UInt64
       getter epoch_count : UInt64
 
       def initialize(@history_id : HistoryId)
-        @batches = Hash(DeltaBatchId, HistoryDeltaBatch).new
-        @timelines = Hash(TimelineId, HistoryTimeline).new
-        @epochs = [] of HistoryEpoch
+        @batches = Hash(DeltaBatchId, Batch).new
+        @timelines = Hash(TimelineId, Timeline).new
+        @epochs = [] of Epoch
         @max_timestamp = 0u64
         @epoch_count = 0u64
       end
 
-      def self.from_snapshot(snapshot : HistoryDagSnapshot) : HistoryDag
-        dag = HistoryDag.new(snapshot.history_id)
+      def self.from_snapshot(snapshot : Snapshot) : Dag
+        dag = Dag.new(snapshot.history_id)
         dag.install_checkpoint(snapshot)
         dag
       end
 
-      def create_timeline(id : TimelineId, origin : HistoryVersion = HistoryVersion.new, parent : TimelineId? = nil) : HistoryTimeline
+      def create_timeline(id : TimelineId, origin : HistoryVersion = HistoryVersion.new, parent : TimelineId? = nil) : Timeline
         if @timelines.has_key?(id)
           raise ArgumentError.new("timeline already exists: #{id}")
         end
         validate_version(origin)
-        timeline = HistoryTimeline.new(id, origin, origin, parent)
+        timeline = Timeline.new(id, origin, origin, parent)
         @timelines[id] = timeline
         timeline
       end
 
-      def insert_globally(batch : HistoryDeltaBatch) : Nil
+      def insert_globally(batch : Batch) : Nil
         if existing = @batches[batch.id]?
           return if existing == batch
           raise ArgumentError.new("conflicting batch id: #{batch.id}")
@@ -58,7 +58,7 @@ module DeltaDB
         @timelines[batch.timeline] = timeline
       end
 
-      def insert_on_timeline(batch : HistoryDeltaBatch) : Nil
+      def insert_on_timeline(batch : Batch) : Nil
         timeline = @timelines[batch.timeline]? || create_timeline(batch.timeline, batch.parents)
         unless version_reaches(timeline.head, batch.parents)
           raise ArgumentError.new("batch does not extend timeline head: #{batch.timeline}")
@@ -69,7 +69,7 @@ module DeltaDB
         @timelines[batch.timeline] = timeline
       end
 
-      def advance_timeline(batch : HistoryDeltaBatch) : Nil
+      def advance_timeline(batch : Batch) : Nil
         insert_on_timeline(batch)
       end
 
@@ -80,7 +80,7 @@ module DeltaDB
         reset_id
       end
 
-      def fork_timeline(source_id : TimelineId, target_id : TimelineId, at : HistoryVersion? = nil) : HistoryTimeline
+      def fork_timeline(source_id : TimelineId, target_id : TimelineId, at : HistoryVersion? = nil) : Timeline
         source = @timelines.fetch(source_id) { raise ArgumentError.new("unknown timeline: #{source_id}") }
         create_timeline(target_id, at || source.head, source_id)
       end
@@ -171,20 +171,20 @@ module DeltaDB
         common_ancestor(timeline_version(a), timeline_version(b))
       end
 
-      def delta_headers_difference(a : HistoryVersion, b : HistoryVersion) : Array(HistoryDeltaBatch)
+      def delta_headers_difference(a : HistoryVersion, b : HistoryVersion) : Array(Batch)
         left = ancestor_ids(a)
         right = ancestor_ids(b)
         ids = left.reject { |id| right.includes?(id) }
         ids.sort.map { |id| @batches[id] }
       end
 
-      def deltas_between(a : HistoryVersion, b : HistoryVersion) : Array(HistoryDeltaBatch)
+      def deltas_between(a : HistoryVersion, b : HistoryVersion) : Array(Batch)
         delta_headers_difference(a, b)
       end
 
-      def begin_epoch : HistoryEpoch
+      def begin_epoch : Epoch
         @epoch_count += 1u64
-        epoch = HistoryEpoch.new(@epoch_count, timeline_version)
+        epoch = Epoch.new(@epoch_count, timeline_version)
         @epochs << epoch
         epoch
       end
@@ -193,8 +193,8 @@ module DeltaDB
         version.ids.max_of? { |id| @batches[id]?.try(&.epoch) || 0u64 } || 0u64
       end
 
-      def checkpoint : HistoryDagSnapshot
-        HistoryDagSnapshot.new(
+      def checkpoint : Snapshot
+        Snapshot.new(
           @history_id,
           @batches.values.sort_by(&.id),
           @timelines.values.sort_by(&.id),
@@ -204,7 +204,7 @@ module DeltaDB
         )
       end
 
-      def install_checkpoint(snapshot : HistoryDagSnapshot) : Nil
+      def install_checkpoint(snapshot : Snapshot) : Nil
         unless snapshot.history_id == @history_id
           raise ArgumentError.new("checkpoint history does not match")
         end
@@ -231,7 +231,7 @@ module DeltaDB
         end
       end
 
-      def merge_checkpoint(snapshot : HistoryDagSnapshot) : Nil
+      def merge_checkpoint(snapshot : Snapshot) : Nil
         unless snapshot.history_id == @history_id
           raise ArgumentError.new("checkpoint history does not match")
         end

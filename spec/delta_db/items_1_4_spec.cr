@@ -32,13 +32,13 @@ describe "history engine" do
 
     uuid = UUID.random
     version = DeltaDB::HistoryVersion.from_id(DeltaDB::DeltaBatchId.new(uuid, 0u64))
-    record = DeltaDB::HistoryRecord.new(DeltaDB::HistoryId.random, DeltaDB::TimelineId.random, version)
+    record = DeltaDB::History::Record.new(DeltaDB::HistoryId.random, DeltaDB::TimelineId.random, version)
     record.target_version.should eq version
   end
 
   it "resolves a merge base for identical versions" do
     uuid = UUID.random
     v = DeltaDB::HistoryVersion.from_id(DeltaDB::DeltaBatchId.new(uuid, 0u64))
-    DeltaDB::MergeBaseResolver.merge_base(v, v).should eq v
+    DeltaDB::History::MergeBase.resolve(v, v).should eq v
   end
 end

@@ -10,11 +10,11 @@ module DeltaDB
           Failed
         end
 
-        getter pack : ReplicationPack
-        property state : ReplicationOutboxState
+        getter pack : Pack
+        property state : State
         property last_error : String?
 
-        def initialize(@pack : ReplicationPack, @state : ReplicationOutboxState = ReplicationOutboxState::Pending, @last_error : String? = nil)
+        def initialize(@pack : Pack, @state : State = State::Pending, @last_error : String? = nil)
         end
 
         def id : String

@@ -17,7 +17,7 @@ module DeltaDB
       end
     end
 
-    def insert_checkpoint_publication(publication : CheckpointPublication) : Nil
+    def insert_checkpoint_publication(publication : Checkpoint::Publication) : Nil
       @db.transaction do |tx|
         conn = tx.connection
         key = history_conn(conn, publication.history_id)
@@ -29,21 +29,21 @@ module DeltaDB
       end
     end
 
-    def transition_checkpoint_publication_phase(id : String, phase : CheckpointPublicationPhase, error : String? = nil) : Nil
+    def transition_checkpoint_publication_phase(id : String, phase : Checkpoint::Publication::Phase, error : String? = nil) : Nil
       @db.exec("UPDATE history_checkpoint_publications SET phase = ?, last_error = ? WHERE id = ?", phase.to_s, error, id)
     end
 
-    def checkpoint_publication(id : String) : CheckpointPublication?
+    def checkpoint_publication(id : String) : Checkpoint::Publication?
       row = @db.query_one?("SELECT history_key, version, phase, encoded, last_error FROM history_checkpoint_publications WHERE id = ?", id) do |rs|
         {rs.read(Int64), rs.read(String), rs.read(String), rs.read(String), rs.read(String?)}
       end
       return nil unless row
       key, version, phase, encoded, error = row
-      CheckpointPublication.new(id, history_for_key(@db, key), decode_version_conn(@db, key, version), encoded, CheckpointPublicationPhase.parse(phase), error)
+      Checkpoint::Publication.new(id, history_for_key(@db, key), decode_version_conn(@db, key, version), encoded, Checkpoint::Publication::Phase.parse(phase), error)
     end
 
-    def checkpoint_publications : Array(CheckpointPublication)
-      publications = [] of CheckpointPublication
+    def checkpoint_publications : Array(Checkpoint::Publication)
+      publications = [] of Checkpoint::Publication
       @db.transaction do |tx|
         conn = tx.connection
         conn.query("SELECT id, history_key, version, phase, encoded, last_error FROM history_checkpoint_publications ORDER BY id") do |rs|
@@ -54,26 +54,26 @@ module DeltaDB
             phase = rs.read(String)
             encoded = rs.read(String)
             error = rs.read(String?)
-            publications << CheckpointPublication.new(id, history_for_key(conn, key), decode_version_conn(conn, key, version), encoded, CheckpointPublicationPhase.parse(phase), error)
+            publications << Checkpoint::Publication.new(id, history_for_key(conn, key), decode_version_conn(conn, key, version), encoded, Checkpoint::Publication::Phase.parse(phase), error)
           end
         end
       end
       publications
     end
 
-    def insert_replication_outbox(entry : ReplicationOutboxEntry) : Nil
+    def insert_replication_outbox(entry : Replication::Outbox::Entry) : Nil
       @db.transaction do |tx|
         conn = tx.connection
         key = history_conn(conn, entry.pack.history_id)
         conn.exec(
           "INSERT OR REPLACE INTO history_replication_outbox (id, history_key, pack, state, last_error) VALUES (?, ?, ?, ?, ?)",
-          entry.id, key, ReplicationPackCodec.encode(entry.pack), entry.state.to_s, entry.last_error,
+          entry.id, key, Replication::PackCodec.encode(entry.pack), entry.state.to_s, entry.last_error,
         )
       end
     end
 
-    def replication_outbox_entries(state : ReplicationOutboxState? = nil) : Array(ReplicationOutboxEntry)
-      entries = [] of ReplicationOutboxEntry
+    def replication_outbox_entries(state : Replication::Outbox::Entry::State? = nil) : Array(Replication::Outbox::Entry)
+      entries = [] of Replication::Outbox::Entry
       if state
         @db.query("SELECT pack, state, last_error FROM history_replication_outbox WHERE state = ? ORDER BY id", state.to_s) do |rs|
           rs.each { entries << outbox_entry(rs) }
@@ -90,11 +90,11 @@ module DeltaDB
       @db.scalar("SELECT COUNT(*) FROM history_replication_outbox WHERE state IN ('Pending', 'Sending')").as(Int64).to_i32
     end
 
-    def update_replication_outbox_state(id : String, state : ReplicationOutboxState, error : String? = nil) : Nil
+    def update_replication_outbox_state(id : String, state : Replication::Outbox::Entry::State, error : String? = nil) : Nil
       @db.exec("UPDATE history_replication_outbox SET state = ?, last_error = ? WHERE id = ?", state.to_s, error, id)
     end
 
-    def upsert_history_connection_state(state : HistoryConnectionState) : Nil
+    def upsert_history_connection_state(state : Replication::Connection) : Nil
       @db.transaction do |tx|
         conn = tx.connection
         key = history_conn(conn, state.history_id)
@@ -107,7 +107,7 @@ module DeltaDB
       end
     end
 
-    def load_history_connection_state(history : HistoryId) : HistoryConnectionState?
+    def load_history_connection_state(history : HistoryId) : Replication::Connection?
       key = @db.query_one?("SELECT history_key FROM histories WHERE history_uuid = ?", history.value.bytes.to_slice) do |rs|
         rs.read(Int64)
       end
@@ -117,18 +117,18 @@ module DeltaDB
       end
       return nil unless row
       local, remote, generation, status, error = row
-      HistoryConnectionState.new(
+      Replication::Connection.new(
         history,
         decode_version_conn(@db, key, local),
         decode_version_conn(@db, key, remote),
         generation.to_u32,
-        HistoryConnectionStatus.parse(status),
+        Replication::Connection::Status.parse(status),
         error,
       )
     end
 
-    private def outbox_entry(rs : DB::ResultSet) : ReplicationOutboxEntry
-      ReplicationOutboxEntry.new(ReplicationPackCodec.decode(rs.read(String)), ReplicationOutboxState.parse(rs.read(String)), rs.read(String?))
+    private def outbox_entry(rs : DB::ResultSet) : Replication::Outbox::Entry
+      Replication::Outbox::Entry.new(Replication::PackCodec.decode(rs.read(String)), Replication::Outbox::Entry::State.parse(rs.read(String)), rs.read(String?))
     end
 
     private def history_for_key(conn : DB::Connection | DB::Database, key : Int64) : HistoryId

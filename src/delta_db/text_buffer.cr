@@ -2,13 +2,13 @@
 module DeltaDB
   class TextBuffer
     getter snapshot : BufferSnapshot
-    getter history : History
+    getter history : UndoHistory
     getter lamport_clock : Clock
 
     def initialize(replica_id : ReplicaId, remote_id : BufferId, base_text : String)
       line_ending = base_text.includes?("\r\n") ? LineEnding::Crlf : LineEnding::Lf
       @snapshot = BufferSnapshot.build(Eol.clean(base_text), remote_id, replica_id, line_ending)
-      @history = History.new(@snapshot.visible_text)
+      @history = UndoHistory.new(@snapshot.visible_text)
       @lamport_clock = Clock.new(Lamport.new(replica_id))
       @lamport_clock.observe(Lamport.new(ReplicaId::LOCAL)) unless base_text.empty?
     end
@@ -59,7 +59,7 @@ module DeltaDB
       @history.start_transaction(@lamport_clock)
     end
 
-    def end_transaction : HistoryEntry?
+    def end_transaction : UndoHistory::Entry?
       @history.end_transaction
     end
 

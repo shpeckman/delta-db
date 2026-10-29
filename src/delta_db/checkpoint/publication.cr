@@ -14,10 +14,10 @@ module DeltaDB
       getter history_id : HistoryId
       getter version : HistoryVersion
       getter encoded : String
-      property phase : CheckpointPublicationPhase
+      property phase : Phase
       property last_error : String?
 
-      def initialize(@id : String, @history_id : HistoryId, @version : HistoryVersion, @encoded : String, @phase : CheckpointPublicationPhase = CheckpointPublicationPhase::Prepared, @last_error : String? = nil)
+      def initialize(@id : String, @history_id : HistoryId, @version : HistoryVersion, @encoded : String, @phase : Phase = Phase::Prepared, @last_error : String? = nil)
       end
     end
   end

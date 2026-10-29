@@ -6,58 +6,58 @@ module DeltaDB
     module Codec
       MAGIC = "delta-db-checkpoint-v1\n"
 
-      def self.encode(snapshot : HistoryDagSnapshot) : String
+      def self.encode(snapshot : History::Snapshot) : String
         MAGIC + document(snapshot).to_json
       end
 
-      def self.decode(text : String) : HistoryDagSnapshot
+      def self.decode(text : String) : History::Snapshot
         unless text.starts_with?(MAGIC)
           raise ArgumentError.new("unsupported checkpoint envelope")
         end
-        snapshot(CheckpointDocument.from_json(text[MAGIC.size..]))
+        snapshot(Document.from_json(text[MAGIC.size..]))
       end
 
-      def self.document(snapshot : HistoryDagSnapshot) : CheckpointDocument
-        CheckpointDocument.new(
+      def self.document(snapshot : History::Snapshot) : Document
+        Document.new(
           snapshot.history_id.to_s,
           snapshot.max_timestamp,
           snapshot.epoch_count,
           snapshot.batches.sort_by(&.id).map { |batch| batch_document(batch) },
           snapshot.timelines.sort_by(&.id).map { |timeline| timeline_document(timeline) },
-          snapshot.epochs.sort_by(&.epoch).map { |epoch| CheckpointEpochDocument.new(epoch.epoch, version_document(epoch.start_version)) },
+          snapshot.epochs.sort_by(&.epoch).map { |epoch| EpochDocument.new(epoch.epoch, version_document(epoch.start_version)) },
         )
       end
 
-      def self.snapshot(document : CheckpointDocument) : HistoryDagSnapshot
-        HistoryDagSnapshot.new(
+      def self.snapshot(document : Document) : History::Snapshot
+        History::Snapshot.new(
           HistoryId.new(UUID.new(document.history_uuid)),
           document.batches.map { |batch| batch_snapshot(batch) },
           document.timelines.map { |timeline| timeline_snapshot(timeline) },
-          document.epochs.map { |epoch| HistoryEpoch.new(epoch.epoch, version_snapshot(epoch.start_version)) },
+          document.epochs.map { |epoch| History::Epoch.new(epoch.epoch, version_snapshot(epoch.start_version)) },
           document.max_timestamp,
           document.epoch_count,
         )
       end
 
-      def self.version_document(version : HistoryVersion) : Array(CheckpointBatchIdDocument)
-        version.ids.map { |id| CheckpointBatchIdDocument.new(id.uuid.to_s, id.ordinal) }
+      def self.version_document(version : HistoryVersion) : Array(BatchIdDocument)
+        version.ids.map { |id| BatchIdDocument.new(id.uuid.to_s, id.ordinal) }
       end
 
-      def self.version_snapshot(ids : Array(CheckpointBatchIdDocument)) : HistoryVersion
+      def self.version_snapshot(ids : Array(BatchIdDocument)) : HistoryVersion
         HistoryVersion.from_ids(ids.map { |id| DeltaBatchId.new(UUID.new(id.uuid), id.ordinal) })
       end
 
-      def self.timeline_document(id : TimelineId) : CheckpointTimelineIdDocument
-        CheckpointTimelineIdDocument.new(id.uuid.to_s, id.generation)
+      def self.timeline_document(id : TimelineId) : TimelineIdDocument
+        TimelineIdDocument.new(id.uuid.to_s, id.generation)
       end
 
-      def self.timeline_snapshot(id : CheckpointTimelineIdDocument) : TimelineId
+      def self.timeline_snapshot(id : TimelineIdDocument) : TimelineId
         TimelineId.new(UUID.new(id.uuid), id.generation)
       end
 
-      private def self.batch_document(batch : HistoryDeltaBatch) : CheckpointBatchDocument
-        CheckpointBatchDocument.new(
-          CheckpointBatchIdDocument.new(batch.id.uuid.to_s, batch.id.ordinal),
+      private def self.batch_document(batch : History::Batch) : BatchDocument
+        BatchDocument.new(
+          BatchIdDocument.new(batch.id.uuid.to_s, batch.id.ordinal),
           timeline_document(batch.timeline),
           batch.actor.to_s,
           version_document(batch.parents),
@@ -66,8 +66,8 @@ module DeltaDB
         )
       end
 
-      private def self.batch_snapshot(batch : CheckpointBatchDocument) : HistoryDeltaBatch
-        HistoryDeltaBatch.new(
+      private def self.batch_snapshot(batch : BatchDocument) : History::Batch
+        History::Batch.new(
           DeltaBatchId.new(UUID.new(batch.id.uuid), batch.id.ordinal),
           timeline_snapshot(batch.timeline),
           ActorUuid.new(UUID.new(batch.actor_uuid)),
@@ -77,8 +77,8 @@ module DeltaDB
         )
       end
 
-      private def self.timeline_document(timeline : HistoryTimeline) : CheckpointTimelineDocument
-        CheckpointTimelineDocument.new(
+      private def self.timeline_document(timeline : History::Timeline) : TimelineDocument
+        TimelineDocument.new(
           timeline_document(timeline.id),
           version_document(timeline.head),
           version_document(timeline.origin),
@@ -87,8 +87,8 @@ module DeltaDB
         )
       end
 
-      private def self.timeline_snapshot(timeline : CheckpointTimelineDocument) : HistoryTimeline
-        HistoryTimeline.new(
+      private def self.timeline_snapshot(timeline : TimelineDocument) : History::Timeline
+        History::Timeline.new(
           timeline_snapshot(timeline.id),
           version_snapshot(timeline.head),
           version_snapshot(timeline.origin),
@@ -97,8 +97,8 @@ module DeltaDB
         )
       end
 
-      private def self.delta_document(delta : Delta) : CheckpointDeltaDocument
-        CheckpointDeltaDocument.new(
+      private def self.delta_document(delta : Delta) : DeltaDocument
+        DeltaDocument.new(
           delta.history.to_s,
           timeline_document(delta.timeline),
           delta.actor.to_s,
@@ -108,7 +108,7 @@ module DeltaDB
         )
       end
 
-      private def self.delta_snapshot(delta : CheckpointDeltaDocument) : Delta
+      private def self.delta_snapshot(delta : DeltaDocument) : Delta
         Delta.new(
           HistoryId.new(UUID.new(delta.history_uuid)),
           timeline_snapshot(delta.timeline),

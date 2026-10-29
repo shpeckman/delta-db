@@ -5,7 +5,7 @@ module DeltaDB
 
     def initialize
       @store = RepositoryStore.new
-      @outgoing = [] of HistoryDeltaBatch
+      @outgoing = [] of History::Batch
     end
 
     def new_history_id : HistoryId
@@ -29,13 +29,13 @@ module DeltaDB
       @store.open_shared(remote_id)
     end
 
-    def apply_history_delta(repository : Repository, delta : Delta) : HistoryDeltaBatch
+    def apply_history_delta(repository : Repository, delta : Delta) : History::Batch
       batch = repository.apply(delta)
       @outgoing << batch
       batch
     end
 
-    def apply_history_delta_batch(repository : Repository, batch : HistoryDeltaBatch) : Nil
+    def apply_history_delta_batch(repository : Repository, batch : History::Batch) : Nil
       repository.apply_remote(batch)
     end
 
@@ -51,7 +51,7 @@ module DeltaDB
       @outgoing.empty?
     end
 
-    def drain_confirmed_outgoing : Array(HistoryDeltaBatch)
+    def drain_confirmed_outgoing : Array(History::Batch)
       confirmed = @outgoing.dup
       @outgoing.clear
       confirmed

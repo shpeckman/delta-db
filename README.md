@@ -25,24 +25,24 @@ version.contains?(first) # => true
 
 ## History DAG and checkpoint storage
 
-`HistoryDag` stores batches with parent versions and supports timeline insertion, reset, fork, lineage, epochs, ancestry, reachability, common ancestors, dominators, and merge-base resolution.
+`History::Dag` stores batches with parent versions and supports timeline insertion, reset, fork, lineage, epochs, ancestry, reachability, common ancestors, dominators, and merge-base resolution.
 
 ```crystal
-dag = DeltaDB::HistoryDag.new(DeltaDB::HistoryId.random)
+dag = DeltaDB::History::Dag.new(DeltaDB::HistoryId.random)
 timeline = DeltaDB::TimelineId.random
 actor = DeltaDB::ActorUuid.random
-root = DeltaDB::HistoryDeltaBatch.new(DeltaDB::DeltaBatchId.new(timeline.uuid, 1_u64), timeline, actor)
+root = DeltaDB::History::Batch.new(DeltaDB::DeltaBatchId.new(timeline.uuid, 1_u64), timeline, actor)
 dag.insert_on_timeline(root)
 forked = dag.fork_timeline(timeline, DeltaDB::TimelineId.random)
 ```
 
-`HistoryDag#checkpoint` returns a `HistoryDagSnapshot` containing batches, timelines, epochs, and counters. `HistoryDag.from_snapshot` restores it with dependency ordering. `MergeBaseResolver.merge_base(dag, a, b)` returns the maximal shared ancestor or `nil` when no shared batch exists.
+`History::Dag#checkpoint` returns a `History::Snapshot` containing batches, timelines, epochs, and counters. `History::Dag.from_snapshot` restores it with dependency ordering. `History::MergeBase.resolve(dag, a, b)` returns the maximal shared ancestor or `nil` when no shared batch exists.
 
 `Storage#save_dag`, `#load_dag`, and `#install_checkpoint` persist DAG state transactionally. `#checkpoint` reads a snapshot, while `#record_checkpoint` and `#checkpoint_version` persist/read a boundary. `pack_deltas` stores multiple payloads in one pack and `delta_value` transparently reads inline, overflow, or packed data. `append_run` and `load_runs` persist run headers and ordered segments. New databases use `Storage::CURRENT_SCHEMA_VERSION`; newer unsupported schemas are rejected.
 
 ## Client models and repositories
 
-`Map` stores typed register, blob, buffer, nested-map, and worktree entries. `ClientBuffer` wraps the text CRDT engine with anchors, editing, snapshots, and sealing. `ClientOperation` describes typed map/buffer/worktree changes, and `DeltaApplication` applies them. `Replica(T)` applies deltas into a `HistoryDag`, tracks outgoing batches, and enforces sealing.
+`Map` stores typed register, blob, buffer, nested-map, and worktree entries. `ClientBuffer` wraps the text CRDT engine with anchors, editing, snapshots, and sealing. `ClientOperation` describes typed map/buffer/worktree changes, and `DeltaApplication` applies them. `Replica(T)` applies deltas into a `History::Dag`, tracks outgoing batches, and enforces sealing.
 
 `BlobStore` content-addresses payloads with SHA-256. `Worktree` applies file deltas, maintains text and blobs, and restores `WorktreeSnapshot` values. `WorktreeText` edits files through client buffers and builds `FragmentIndex` values. `FragmentIndex#apply` executes sorted, non-overlapping `EditPlan` splices.
 
@@ -91,14 +91,14 @@ version = storage.append_delta(delta)
 
 ## Checkpoints and replication
 
-`CheckpointCodec` encodes `HistoryDagSnapshot` in a versioned JSON envelope with Base64 delta payloads. `CheckpointPublisher` manages prepared, published, installed, and failed phases. `ReplicationPacker` creates sealed checkpoint packs and `ReplicationPackCodec` round-trips them. `ReplicationOutbox` persists pending, failed, and acknowledged packs with retry support.
+`Checkpoint::Codec` encodes `History::Snapshot` in a versioned JSON envelope with Base64 delta payloads. `Checkpoint::Publisher` manages prepared, published, installed, and failed phases. `Replication::Pack.from` creates sealed checkpoint packs and `Replication::PackCodec` round-trips them. `Replication::Outbox` persists pending, failed, and acknowledged packs with retry support.
 
-`RemoteSync` pushes and pulls checkpoints through `RemotePeer`, an in-memory remote transport used for deterministic protocol and recovery tests. It supports divergent-history merge, timeline reset/fork, duplicate-pack suppression, and persisted `HistoryConnectionState`. It is not an implementation of Delta's production network service.
+`Replication::Sync` pushes and pulls checkpoints through `Replication::Peer`, an in-memory remote transport used for deterministic protocol and recovery tests. It supports divergent-history merge, timeline reset/fork, duplicate-pack suppression, and persisted `Replication::Connection`. It is not an implementation of Delta's production network service.
 
 ```crystal
-remote = DeltaDB::RemotePeer.new
+remote = DeltaDB::Replication::Peer.new
 storage = DeltaDB::Storage.in_memory
-sync = DeltaDB::RemoteSync.new(storage, remote)
+sync = DeltaDB::Replication::Sync.new(storage, remote)
 sync.push_history(dag)
 sync.pull_history(dag)
 state = sync.connection_state(dag.history_id)

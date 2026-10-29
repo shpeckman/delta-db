@@ -7,12 +7,12 @@ module DeltaDB
       include JSON::Serializable
 
       getter id : String
-      getter from_version : Array(CheckpointBatchIdDocument)
-      getter to_version : Array(CheckpointBatchIdDocument)
-      getter checkpoint : CheckpointDocument
+      getter from_version : Array(Checkpoint::BatchIdDocument)
+      getter to_version : Array(Checkpoint::BatchIdDocument)
+      getter checkpoint : Checkpoint::Document
       getter sealed : Bool
 
-      def initialize(@id : String, @from_version : Array(CheckpointBatchIdDocument), @to_version : Array(CheckpointBatchIdDocument), @checkpoint : CheckpointDocument, @sealed : Bool)
+      def initialize(@id : String, @from_version : Array(Checkpoint::BatchIdDocument), @to_version : Array(Checkpoint::BatchIdDocument), @checkpoint : Checkpoint::Document, @sealed : Bool)
       end
     end
   end
