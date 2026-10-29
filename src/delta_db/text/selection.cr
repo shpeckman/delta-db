@@ -13,13 +13,13 @@ module DeltaDB
       getter start : T
       getter end : T
       getter reversed : Bool
-      getter goal : SelectionGoal
+      getter goal : Goal
 
-      def initialize(@id : Int32, @start : T, @end : T, @reversed : Bool, @goal : SelectionGoal)
+      def initialize(@id : Int32, @start : T, @end : T, @reversed : Bool, @goal : Goal)
       end
 
       def self.from_offset(offset : T) : Selection(T)
-        Selection(T).new(0, offset, offset, false, SelectionGoal::None)
+        Selection(T).new(0, offset, offset, false, Goal::None)
       end
 
       def head : T
@@ -34,7 +34,7 @@ module DeltaDB
         @start..@end
       end
 
-      def collapse_to(point : T, goal : SelectionGoal) : Nil
+      def collapse_to(point : T, goal : Goal) : Nil
         @start = point
         @end = point
         @goal = goal

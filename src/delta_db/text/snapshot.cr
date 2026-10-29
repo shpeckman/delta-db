@@ -7,7 +7,7 @@ module DeltaDB
       getter fragments : Array(Fragment)
       getter insertions : Array(InsertionFragment)
       getter undo_map : UndoMap
-      getter version : Global
+      getter version : VersionVector
       getter remote_id : BufferId
       getter replica_id : ReplicaId
       getter line_ending : LineEnding
@@ -16,7 +16,7 @@ module DeltaDB
         @visible_text : Rope,
         @deleted_text : Rope,
         @fragments : Array(Fragment),
-        @version : Global,
+        @version : VersionVector,
         @remote_id : BufferId,
         @replica_id : ReplicaId,
         @line_ending : LineEnding = LineEnding::Lf,
@@ -26,9 +26,9 @@ module DeltaDB
         @pending_ops = [] of Operation
       end
 
-      def self.build(text : String, remote_id : BufferId, replica_id : ReplicaId = ReplicaId::LOCAL, line_ending : LineEnding = LineEnding::Lf) : BufferSnapshot
+      def self.build(text : String, remote_id : BufferId, replica_id : ReplicaId = ReplicaId::LOCAL, line_ending : LineEnding = LineEnding::Lf) : Snapshot
         timestamp = Lamport.new(ReplicaId::LOCAL)
-        version = Global.new
+        version = VersionVector.new
         fragments = [] of Fragment
         unless text.empty?
           fragments << Fragment.new(
@@ -40,7 +40,7 @@ module DeltaDB
           )
           version.observe(timestamp)
         end
-        snapshot = BufferSnapshot.new(Rope.build(text), Rope.empty, fragments, version, remote_id, replica_id, line_ending)
+        snapshot = Snapshot.new(Rope.build(text), Rope.empty, fragments, version, remote_id, replica_id, line_ending)
         snapshot.rebuild_insertions
         snapshot
       end
@@ -76,7 +76,7 @@ module DeltaDB
 
           full_start = full_offset_for_visible(range.begin).to_u32
           full_end = full_offset_for_visible(range.end).to_u32
-          replacement = Eol.clean(new_text[index])
+          replacement = LineEnding.normalize(new_text[index])
           apply_remote_edit(full_start...full_end, replacement, timestamp, @version)
           operation_ranges.unshift(full_start...full_end)
           operation_text.unshift(replacement)
@@ -191,7 +191,7 @@ module DeltaDB
 
         (op.ranges.size - 1).downto(0) do |index|
           range = op.ranges[index]
-          apply_remote_edit(range.begin...range.end, Eol.clean(op.new_text[index]), op.timestamp, op.version)
+          apply_remote_edit(range.begin...range.end, LineEnding.normalize(op.new_text[index]), op.timestamp, op.version)
         end
         rebuild_text
       end
@@ -211,7 +211,7 @@ module DeltaDB
         rebuild_text if changed
       end
 
-      private def apply_remote_edit(range : Range(FullOffset, FullOffset), new_text : String, timestamp : Lamport, version : Global) : Nil
+      private def apply_remote_edit(range : Range(FullOffset, FullOffset), new_text : String, timestamp : Lamport, version : VersionVector) : Nil
         if range.end < range.begin
           raise ArgumentError.new("invalid full-offset edit range")
         end

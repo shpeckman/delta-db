@@ -187,7 +187,7 @@ module DeltaDB
       io.to_slice
     end
 
-    def append_delta(delta : Delta) : HistoryVersion
+    def append_delta(delta : Delta) : History::Version
       result : HistoryVersion? = nil
       @db.transaction do |tx|
         conn = tx.connection
@@ -199,7 +199,7 @@ module DeltaDB
           key,
         ).as(Int64)
         batch_id = DeltaBatchId.new(delta.timeline.uuid, delta.timestamp.value.to_u64)
-        version = HistoryVersion.from_id(batch_id)
+        version = History::Version.from_id(batch_id)
         version_text = version.encode_version_text({delta.timeline.uuid => timeline_actor})
 
         insert_delta(conn, key, delta)

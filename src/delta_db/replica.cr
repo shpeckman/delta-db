@@ -49,11 +49,11 @@ module DeltaDB
 
     private def apply_delta(delta : Delta) : History::Batch
       DeltaApplication.apply(@value, delta)
-      parents = @history.timelines[delta.timeline]?.try(&.head) || HistoryVersion.new
+      parents = @history.timelines[delta.timeline]?.try(&.head) || History::Version.new
       id = DeltaBatchId.new(delta.timeline.uuid, delta.timestamp.value.to_u64)
       batch = History::Batch.new(id, delta.timeline, delta.actor, parents, [delta])
       @history.insert_on_timeline(batch)
-      if delta.operation.try(&.kind) == ClientOperationKind::Seal
+      if delta.operation.try(&.kind) == ClientOperation::Kind::Seal
         @seal_state.seal(@history.timeline_version)
       end
       batch

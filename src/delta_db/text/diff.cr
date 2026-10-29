@@ -8,7 +8,7 @@ module DeltaDB
         Delete
       end
 
-      def self.diff(a : Array(T), b : Array(T)) : Array(DiffOp) forall T
+      def self.diff(a : Array(T), b : Array(T)) : Array(Op) forall T
         n = a.size
         m = b.size
         lcs = Array.new(n + 1) { Array(Int32).new(m + 1, 0) }
@@ -18,34 +18,34 @@ module DeltaDB
           end
         end
 
-        ops = [] of DiffOp
+        ops = [] of Op
         i = n
         j = m
         while i > 0 && j > 0
           if a[i - 1] == b[j - 1]
-            ops << DiffOp::Equal
+            ops << Op::Equal
             i -= 1
             j -= 1
           elsif lcs[i - 1][j] >= lcs[i][j - 1]
-            ops << DiffOp::Delete
+            ops << Op::Delete
             i -= 1
           else
-            ops << DiffOp::Insert
+            ops << Op::Insert
             j -= 1
           end
         end
         while i > 0
-          ops << DiffOp::Delete
+          ops << Op::Delete
           i -= 1
         end
         while j > 0
-          ops << DiffOp::Insert
+          ops << Op::Insert
           j -= 1
         end
         ops.reverse!
       end
 
-      def self.chars(a : String, b : String) : Array(DiffOp)
+      def self.chars(a : String, b : String) : Array(Op)
         diff(a.chars.map(&.ord), b.chars.map(&.ord))
       end
     end

@@ -3,14 +3,14 @@ module DeltaDB
   module Text
     struct Anchor
       getter timestamp_replica_id : ReplicaId
-      getter timestamp_value : Seq
+      getter timestamp_value : Lamport::Seq
       getter offset : UInt32
       getter bias : Bias
       getter buffer_id : BufferId
 
       def initialize(
         @timestamp_replica_id : ReplicaId,
-        @timestamp_value : Seq,
+        @timestamp_value : Lamport::Seq,
         @offset : UInt32,
         @bias : Bias,
         @buffer_id : BufferId,

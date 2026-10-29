@@ -1,11 +1,11 @@
 # spec/delta_db/text_crdt_spec.cr
 require "../spec_helper"
 
-private def new_buffer(replica : UInt16 = 0u16, text : String = "") : DeltaDB::TextBuffer
-  DeltaDB::TextBuffer.new(DeltaDB::ReplicaId.new(replica), DeltaDB::BufferId.new(1u64), text)
+private def new_buffer(replica : UInt16 = 0u16, text : String = "") : DeltaDB::Text::Buffer
+  DeltaDB::Text::Buffer.new(DeltaDB::ReplicaId.new(replica), DeltaDB::Text::BufferId.new(1u64), text)
 end
 
-describe DeltaDB::TextBuffer do
+describe DeltaDB::Text::Buffer do
   it "maintains visible and deleted text through replacements" do
     buffer = new_buffer(text: "abc")
     buffer.edit([{1...2, "X"}])
@@ -140,7 +140,7 @@ describe DeltaDB::TextBuffer do
     buffer = new_buffer(1u16, "abcdefgh")
     buffer.edit([{2...5, ""}])
     timestamp = DeltaDB::Lamport.new(DeltaDB::ReplicaId.new(2u16), 10u32)
-    operation = DeltaDB::EditOperation.new(timestamp, buffer.version, [1u32...4u32], [""])
+    operation = DeltaDB::Text::EditOperation.new(timestamp, buffer.version, [1u32...4u32], [""])
 
     buffer.apply(operation)
     buffer.text.should eq "afgh"
@@ -152,7 +152,7 @@ describe DeltaDB::TextBuffer do
   it "converges with duplicate out-of-order network delivery" do
     replica_ids = Array.new(4) { |index| DeltaDB::ReplicaId.new(index.to_u16) }
     buffers = replica_ids.map { |id| new_buffer(id.value, "abcdef") }
-    network = DeltaDB::Network(DeltaDB::Operation).new(42u64)
+    network = TestNetwork(DeltaDB::Text::Operation).new(42u64)
     replica_ids.each { |id| network.add_peer(id) }
     random = Random.new(7u64)
 
@@ -161,14 +161,14 @@ describe DeltaDB::TextBuffer do
       buffer = buffers[index]
       if random.rand(4) == 0 && buffer.history.undo_depth > 0
         if operation = buffer.undo
-          network.broadcast(buffer.replica_id, [operation.as(DeltaDB::Operation)])
+          network.broadcast(buffer.replica_id, [operation.as(DeltaDB::Text::Operation)])
         end
       else
         start = random.rand(buffer.bytesize + 1)
         finish = start + random.rand(buffer.bytesize - start + 1)
         replacement = ["X", "yz", "", "Q"][random.rand(4)]
         operation = buffer.edit([{start...finish, replacement}])
-        network.broadcast(buffer.replica_id, [operation.as(DeltaDB::Operation)])
+        network.broadcast(buffer.replica_id, [operation.as(DeltaDB::Text::Operation)])
       end
 
       if random.rand(2) == 0

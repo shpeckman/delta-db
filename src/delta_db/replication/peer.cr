@@ -22,11 +22,11 @@ module DeltaDB
         @packs[pack.id] = pack
       end
 
-      def pack_for_history(id : HistoryId, from_version : HistoryVersion) : Pack
+      def pack_for_history(id : HistoryId, from_version : History::Version) : Pack
         Pack.from(history(id), from_version)
       end
 
-      def reset_timeline(id : HistoryId, timeline : TimelineId, origin : HistoryVersion) : TimelineId
+      def reset_timeline(id : HistoryId, timeline : TimelineId, origin : History::Version) : TimelineId
         history(id).reset_timeline(timeline, origin)
       end
 

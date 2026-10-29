@@ -2,10 +2,10 @@
 module DeltaDB
   class FragmentIndex
     struct EditPlan
-      getter fragment_id : FragmentId
-      getter splices : Array(ContentSplice)
+      getter fragment_id : Id
+      getter splices : Array(Splice)
 
-      def initialize(@fragment_id : FragmentId, @splices : Array(ContentSplice) = [] of ContentSplice)
+      def initialize(@fragment_id : Id, @splices : Array(Splice) = [] of Splice)
       end
     end
   end

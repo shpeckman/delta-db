@@ -19,7 +19,7 @@ module DeltaDB
         undo_count(edit_id).odd?
       end
 
-      def was_undone(edit_id : Lamport, version : Global) : Bool
+      def was_undone(edit_id : Lamport, version : VersionVector) : Bool
         count = 0u32
         @entries[edit_id]?.try do |entries|
           entries.each do |undo_id, undo_count|

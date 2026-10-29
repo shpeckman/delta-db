@@ -7,17 +7,17 @@ module DeltaDB
       def initialize(@blobs : Hash(String, Bytes) = {} of String => Bytes)
       end
 
-      def put(data : Bytes) : BlobRef
+      def put(data : Bytes) : Ref
         digest = Digest::SHA256.hexdigest(data)
         @blobs[digest] = data.dup
-        BlobRef.new(digest, data.size.to_u64)
+        Ref.new(digest, data.size.to_u64)
       end
 
-      def get(ref : BlobRef) : Bytes
+      def get(ref : Ref) : Bytes
         @blobs.fetch(ref.digest) { raise MissingBlobError.new("missing blob: #{ref.digest}") }
       end
 
-      def contains?(ref : BlobRef) : Bool
+      def contains?(ref : Ref) : Bool
         @blobs.has_key?(ref.digest)
       end
 

@@ -5,7 +5,7 @@ module DeltaDB
       getter id : DeltaBatchId
       getter timeline : TimelineId
       getter actor : ActorUuid
-      getter parents : HistoryVersion
+      getter parents : Version
       getter deltas : Array(Delta)
       getter epoch : UInt64
 
@@ -13,13 +13,13 @@ module DeltaDB
         @id : DeltaBatchId,
         @timeline : TimelineId,
         @actor : ActorUuid,
-        @parents : HistoryVersion = HistoryVersion.new,
+        @parents : Version = Version.new,
         @deltas : Array(Delta) = [] of Delta,
         @epoch : UInt64 = 0u64,
       )
       end
 
-      def causal_parent : HistoryVersion
+      def causal_parent : Version
         @parents
       end
     end

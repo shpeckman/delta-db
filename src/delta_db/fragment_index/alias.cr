@@ -2,10 +2,10 @@
 module DeltaDB
   class FragmentIndex
     struct Alias
-      getter fragment_id : FragmentId
+      getter fragment_id : Id
       getter span : Range(UInt32, UInt32)
 
-      def initialize(@fragment_id : FragmentId, @span : Range(UInt32, UInt32))
+      def initialize(@fragment_id : Id, @span : Range(UInt32, UInt32))
       end
     end
   end

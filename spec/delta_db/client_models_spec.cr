@@ -12,12 +12,12 @@ end
 describe "typed client models" do
   it "stores every map entry kind and filters changes by version" do
     map = DeltaDB::Map.new
-    blobs = DeltaDB::BlobStore.new
+    blobs = DeltaDB::Blob::Store.new
     blob = blobs.put("blob".to_slice)
-    buffer = DeltaDB::ClientBuffer.new(DeltaDB::BufferId.new(1u64), text: "text")
+    buffer = DeltaDB::Buffer.new(DeltaDB::Text::BufferId.new(1u64), text: "text")
     nested = DeltaDB::Map.new
     worktree = DeltaDB::Worktree.new
-    version = DeltaDB::Global.new
+    version = DeltaDB::VersionVector.new
     version.observe(DeltaDB::Lamport.new(DeltaDB::ReplicaId::LOCAL, 3u32))
 
     map.set("register", "value", version)
@@ -27,19 +27,19 @@ describe "typed client models" do
     map.set_worktree("worktree", worktree, version)
 
     map.get("register").should eq "value"
-    map.entry("blob").not_nil!.kind.should eq DeltaDB::MapEntryKind::Blob
-    map.entry("buffer").not_nil!.kind.should eq DeltaDB::MapEntryKind::Buffer
-    map.entry("map").not_nil!.kind.should eq DeltaDB::MapEntryKind::Map
-    map.entry("worktree").not_nil!.kind.should eq DeltaDB::MapEntryKind::Worktree
-    map.changes(DeltaDB::Global.new).size.should eq 5
+    map.entry("blob").not_nil!.kind.should eq DeltaDB::Map::Entry::Kind::Blob
+    map.entry("buffer").not_nil!.kind.should eq DeltaDB::Map::Entry::Kind::Buffer
+    map.entry("map").not_nil!.kind.should eq DeltaDB::Map::Entry::Kind::Map
+    map.entry("worktree").not_nil!.kind.should eq DeltaDB::Map::Entry::Kind::Worktree
+    map.changes(DeltaDB::VersionVector.new).size.should eq 5
     map.changes(version).should be_empty
     map.delete("register")
     map.get("register").should be_nil
   end
 
   it "edits client buffers and enforces sealing" do
-    buffer = DeltaDB::ClientBuffer.new(DeltaDB::BufferId.new(1u64), text: "abc")
-    anchor = buffer.create_anchor(2, DeltaDB::Bias::Left)
+    buffer = DeltaDB::Buffer.new(DeltaDB::Text::BufferId.new(1u64), text: "abc")
+    anchor = buffer.create_anchor(2, DeltaDB::Text::Bias::Left)
     buffer.edit_as_actor([{1...2, "X"}])
 
     buffer.text.should eq "aXc"
@@ -57,7 +57,7 @@ describe "typed client models" do
     actor = DeltaDB::ActorUuid.random
     clock = DeltaDB::Clock.new
     replica = DeltaDB::Replica(DeltaDB::Map).new(DeltaDB::Map.new, history_id: history_id)
-    buffer = DeltaDB::ClientBuffer.new(DeltaDB::BufferId.new(1u64), text: "abc")
+    buffer = DeltaDB::Buffer.new(DeltaDB::Text::BufferId.new(1u64), text: "abc")
     replica.value.set_buffer("document", buffer)
     first = client_delta(history_id, timeline, actor, next_timestamp(clock), DeltaDB::ClientOperation.register("status", "ready"))
     second = client_delta(history_id, timeline, actor, next_timestamp(clock), DeltaDB::ClientOperation.buffer_edit("document", [1...2], ["X"]))
@@ -81,11 +81,11 @@ describe "typed client models" do
   it "applies worktree deltas and restores snapshots with blobs" do
     worktree = DeltaDB::Worktree.new
     worktree.create("src/a.txt", "hello")
-    worktree.apply(DeltaDB::SetLineEndingsDelta.new("src/a.txt", DeltaDB::LineEnding::Crlf))
-    worktree.apply(DeltaDB::EditFileDelta.new("src/a.txt", "hello world"))
-    worktree.apply(DeltaDB::CreateDirDelta.new("src/lib"))
-    worktree.apply(DeltaDB::CreateSymlinkDelta.new("src/link", "a.txt"))
-    worktree.apply(DeltaDB::RenameDelta.new("src/a.txt", "src/b.txt"))
+    worktree.apply(DeltaDB::FileDelta::SetLineEndings.new("src/a.txt", DeltaDB::Text::LineEnding::Crlf))
+    worktree.apply(DeltaDB::FileDelta::Edit.new("src/a.txt", "hello world"))
+    worktree.apply(DeltaDB::FileDelta::CreateDir.new("src/lib"))
+    worktree.apply(DeltaDB::FileDelta::CreateSymlink.new("src/link", "a.txt"))
+    worktree.apply(DeltaDB::FileDelta::Rename.new("src/a.txt", "src/b.txt"))
     snapshot = worktree.snapshot
 
     worktree.read("src/b.txt").should eq "hello world"
@@ -98,18 +98,18 @@ describe "typed client models" do
     restored.snapshot.version.should eq snapshot.version
 
     snapshot_size = snapshot.version.size
-    worktree.apply(DeltaDB::DeleteDelta.new("src/b.txt"))
+    worktree.apply(DeltaDB::FileDelta::Delete.new("src/b.txt"))
     worktree.read("src/b.txt").should be_nil
     snapshot.version.size.should eq snapshot_size
     worktree.snapshot.version.size.should eq snapshot_size + 1
     worktree.seal
-    expect_raises(DeltaDB::SealedError) { worktree.apply(DeltaDB::CreateDirDelta.new("blocked")) }
+    expect_raises(DeltaDB::SealedError) { worktree.apply(DeltaDB::FileDelta::CreateDir.new("blocked")) }
   end
 
   it "edits worktree text and builds fragment indexes" do
     worktree = DeltaDB::Worktree.new
     worktree.create("a.txt", "hello world")
-    text = DeltaDB::WorktreeText.new(worktree)
+    text = DeltaDB::Worktree::Editor.new(worktree)
 
     text.edit("a.txt", [6...11], ["there"])
     text.read("a.txt").should eq "hello there"
@@ -123,30 +123,30 @@ describe "typed client models" do
   it "applies sorted fragment edit plans and rejects overlaps" do
     index = DeltaDB::FragmentIndex.new
     record = index.insert("hello world")
-    plan = DeltaDB::EditPlan.new(record.id, [
-      DeltaDB::ContentSplice.new(0u32...0u32, ">"),
-      DeltaDB::ContentSplice.new(6u32...11u32, "there"),
+    plan = DeltaDB::FragmentIndex::EditPlan.new(record.id, [
+      DeltaDB::FragmentIndex::Splice.new(0u32...0u32, ">"),
+      DeltaDB::FragmentIndex::Splice.new(6u32...11u32, "there"),
     ])
 
     edits = index.apply(plan)
     edits.size.should eq 2
     index.resolve(record.id).should eq ">hello there"
-    overlapping = DeltaDB::EditPlan.new(record.id, [
-      DeltaDB::ContentSplice.new(0u32...3u32, "a"),
-      DeltaDB::ContentSplice.new(2u32...4u32, "b"),
+    overlapping = DeltaDB::FragmentIndex::EditPlan.new(record.id, [
+      DeltaDB::FragmentIndex::Splice.new(0u32...3u32, "a"),
+      DeltaDB::FragmentIndex::Splice.new(2u32...4u32, "b"),
     ])
     expect_raises(ArgumentError) { index.apply(overlapping) }
   end
 
   it "deduplicates content-addressed blobs and restores snapshots" do
-    store = DeltaDB::BlobStore.new
+    store = DeltaDB::Blob::Store.new
     first = store.put("same".to_slice)
     second = store.put("same".to_slice)
 
     first.digest.should eq second.digest
     first.resolve(store).should eq "same".to_slice
     snapshot = store.snapshot
-    restored = DeltaDB::BlobStore.new
+    restored = DeltaDB::Blob::Store.new
     restored.restore(snapshot)
     first.resolve(restored).should eq "same".to_slice
   end

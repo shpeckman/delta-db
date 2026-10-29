@@ -4,9 +4,9 @@ module DeltaDB
     struct Record
       getter history_id : HistoryId
       getter timeline_id : TimelineId
-      getter target_version : HistoryVersion
+      getter target_version : Version
 
-      def initialize(@history_id : HistoryId, @timeline_id : TimelineId, @target_version : HistoryVersion)
+      def initialize(@history_id : HistoryId, @timeline_id : TimelineId, @target_version : Version)
       end
     end
   end

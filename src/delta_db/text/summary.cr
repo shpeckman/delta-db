@@ -25,12 +25,12 @@ module DeltaDB
       )
       end
 
-      def self.zero : TextSummary
-        TextSummary.new
+      def self.zero : Summary
+        Summary.new
       end
 
-      def self.newline : TextSummary
-        TextSummary.new(
+      def self.newline : Summary
+        Summary.new(
           bytesize: 1u64,
           chars: 1u64,
           len_utf16: OffsetUtf16.new(1u64),
@@ -38,7 +38,7 @@ module DeltaDB
         )
       end
 
-      def self.from(text : String) : TextSummary
+      def self.from(text : String) : Summary
         chars = 0u64
         len_utf16 = 0u64
         lines = Point.zero
@@ -69,7 +69,7 @@ module DeltaDB
           end
         end
 
-        TextSummary.new(
+        Summary.new(
           text.bytesize.to_u64,
           chars,
           OffsetUtf16.new(len_utf16),
@@ -94,7 +94,7 @@ module DeltaDB
         @lines += Point.new(1u32, 0u32)
       end
 
-      def add!(other : TextSummary) : Nil
+      def add!(other : Summary) : Nil
         joined_chars = @last_line_chars + other.first_line_chars
         if joined_chars > @longest_row_chars
           @longest_row = @lines.row
@@ -123,13 +123,13 @@ module DeltaDB
         @lines += other.lines
       end
 
-      def +(other : TextSummary) : TextSummary
+      def +(other : Summary) : Summary
         result = self
         result.add!(other)
         result
       end
 
-      def ==(other : TextSummary) : Bool
+      def ==(other : Summary) : Bool
         @bytesize == other.bytesize &&
           @chars == other.chars &&
           @len_utf16 == other.len_utf16 &&

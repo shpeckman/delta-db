@@ -10,16 +10,16 @@ module DeltaDB
       end
 
       getter history_id : HistoryId
-      property local_version : HistoryVersion
-      property remote_version : HistoryVersion
+      property local_version : History::Version
+      property remote_version : History::Version
       property reset_generation : UInt32
       property status : Status
       property last_error : String?
 
       def initialize(
         @history_id : HistoryId,
-        @local_version : HistoryVersion = HistoryVersion.new,
-        @remote_version : HistoryVersion = HistoryVersion.new,
+        @local_version : History::Version = History::Version.new,
+        @remote_version : History::Version = History::Version.new,
         @reset_generation : UInt32 = 0u32,
         @status : Status = Status::Offline,
         @last_error : String? = nil,

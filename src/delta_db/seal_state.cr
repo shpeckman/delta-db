@@ -8,13 +8,13 @@ module DeltaDB
       !@history_version.nil? || !@global_version.nil?
     end
 
-    def seal(version : HistoryVersion) : Nil
+    def seal(version : History::Version) : Nil
       return if @history_version == version
       ensure_mutable!
       @history_version = version
     end
 
-    def seal(version : Global) : Nil
+    def seal(version : VersionVector) : Nil
       return if @global_version == version
       ensure_mutable!
       @global_version = version

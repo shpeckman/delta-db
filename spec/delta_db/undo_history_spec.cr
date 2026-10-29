@@ -1,16 +1,16 @@
 # spec/delta_db/undo_history_spec.cr
 require "../spec_helper"
 
-describe DeltaDB::UndoHistory do
+describe DeltaDB::Text::UndoHistory do
   it "tracks transactions and undo/redo" do
-    history = DeltaDB::UndoHistory.new(DeltaDB::Rope.build("base"))
+    history = DeltaDB::Text::UndoHistory.new(DeltaDB::Text::Rope.build("base"))
     clock = DeltaDB::Clock.new
 
     id = history.start_transaction(clock)
     id.should_not be_nil
 
     ts = clock.tick
-    op = DeltaDB::EditOperation.new(ts, DeltaDB::Global.new, [0u32..0u32], ["x"])
+    op = DeltaDB::Text::EditOperation.new(ts, DeltaDB::VersionVector.new, [0u32..0u32], ["x"])
     history.push(op)
     history.push_undo(ts)
 
@@ -32,7 +32,7 @@ describe DeltaDB::UndoHistory do
   end
 
   it "drops empty transactions on end" do
-    history = DeltaDB::UndoHistory.new(DeltaDB::Rope.build("base"))
+    history = DeltaDB::Text::UndoHistory.new(DeltaDB::Text::Rope.build("base"))
     clock = DeltaDB::Clock.new
     history.start_transaction(clock)
     entry = history.end_transaction
@@ -41,7 +41,7 @@ describe DeltaDB::UndoHistory do
   end
 
   it "supports nested transactions" do
-    history = DeltaDB::UndoHistory.new(DeltaDB::Rope.build("base"))
+    history = DeltaDB::Text::UndoHistory.new(DeltaDB::Text::Rope.build("base"))
     clock = DeltaDB::Clock.new
     history.start_transaction(clock).should_not be_nil
     history.start_transaction(clock).should be_nil

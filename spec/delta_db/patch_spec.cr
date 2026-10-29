@@ -8,9 +8,9 @@ private struct TestOp
   end
 end
 
-describe DeltaDB::Patch do
+describe DeltaDB::Text::Patch do
   it "translates old positions through a patch" do
-    patch = DeltaDB::Patch(Int32).new([DeltaDB::Edit(Int32).new(2..5, 2..9)])
+    patch = DeltaDB::Text::Patch(Int32).new([DeltaDB::Text::Edit(Int32).new(2..5, 2..9)])
     patch.old_to_new(0).should eq 0
     patch.old_to_new(2).should eq 2
     patch.old_to_new(4).should eq 2
@@ -18,29 +18,29 @@ describe DeltaDB::Patch do
   end
 
   it "inverts by swapping old/new" do
-    patch = DeltaDB::Patch(Int32).new([DeltaDB::Edit(Int32).new(2..5, 2..9)])
+    patch = DeltaDB::Text::Patch(Int32).new([DeltaDB::Text::Edit(Int32).new(2..5, 2..9)])
     patch.invert!
     patch.edits.first.old.should eq 2..9
     patch.edits.first.new.should eq 2..5
   end
 
   it "merges adjacent edits on push" do
-    patch = DeltaDB::Patch(Int32).empty
-    patch.push(DeltaDB::Edit(Int32).new(0..3, 0..3))
-    patch.push(DeltaDB::Edit(Int32).new(3..5, 3..5))
+    patch = DeltaDB::Text::Patch(Int32).empty
+    patch.push(DeltaDB::Text::Edit(Int32).new(0..3, 0..3))
+    patch.push(DeltaDB::Text::Edit(Int32).new(3..5, 3..5))
     patch.edits.size.should eq 1
     patch.edits.first.old.should eq 0..5
   end
 
   it "composes with no new edits as identity" do
-    patch = DeltaDB::Patch(Int32).new([DeltaDB::Edit(Int32).new(2..5, 2..9)])
-    composed = patch.compose([] of DeltaDB::Edit(Int32))
+    patch = DeltaDB::Text::Patch(Int32).new([DeltaDB::Text::Edit(Int32).new(2..5, 2..9)])
+    composed = patch.compose([] of DeltaDB::Text::Edit(Int32))
     composed.edits.should eq patch.edits
   end
 
   it "composes disjoint new edits after existing edits" do
-    patch = DeltaDB::Patch(Int32).new([DeltaDB::Edit(Int32).new(0..3, 0..3)])
-    composed = patch.compose([DeltaDB::Edit(Int32).new(10..12, 10..15)])
+    patch = DeltaDB::Text::Patch(Int32).new([DeltaDB::Text::Edit(Int32).new(0..3, 0..3)])
+    composed = patch.compose([DeltaDB::Text::Edit(Int32).new(10..12, 10..15)])
     composed.edits.size.should eq 2
   end
 end
@@ -62,9 +62,9 @@ describe DeltaDB::OperationQueue do
   end
 end
 
-describe DeltaDB::Network do
+describe TestNetwork do
   it "broadcasts and receives messages" do
-    net = DeltaDB::Network(String).new(42u64)
+    net = TestNetwork(String).new(42u64)
     a = DeltaDB::ReplicaId.new(0u16)
     b = DeltaDB::ReplicaId.new(1u16)
     net.add_peer(a)
@@ -82,7 +82,7 @@ describe DeltaDB::Network do
   end
 
   it "drops broadcasts from disconnected peers" do
-    net = DeltaDB::Network(String).new
+    net = TestNetwork(String).new
     a = DeltaDB::ReplicaId.new(0u16)
     b = DeltaDB::ReplicaId.new(1u16)
     net.add_peer(a)

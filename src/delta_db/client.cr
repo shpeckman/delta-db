@@ -1,10 +1,10 @@
 # src/delta_db/client.cr
 module DeltaDB
   class Client
-    getter store : RepositoryStore
+    getter store : Repository::Store
 
     def initialize
-      @store = RepositoryStore.new
+      @store = Repository::Store.new
       @outgoing = [] of History::Batch
     end
 

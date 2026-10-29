@@ -7,7 +7,7 @@ module DeltaDB
       property text : String?
       property blob : BlobRef?
       property symlink_target : String?
-      property line_ending : LineEnding
+      property line_ending : Text::LineEnding
 
       def initialize(
         @path : String,
@@ -15,12 +15,12 @@ module DeltaDB
         @text : String? = nil,
         @blob : BlobRef? = nil,
         @symlink_target : String? = nil,
-        @line_ending : LineEnding = LineEnding::Lf,
+        @line_ending : Text::LineEnding = Text::LineEnding::Lf,
       )
       end
 
-      def copy : WorktreeFile
-        WorktreeFile.new(@path, @kind, @text, @blob, @symlink_target, @line_ending)
+      def copy : Entry
+        Entry.new(@path, @kind, @text, @blob, @symlink_target, @line_ending)
       end
     end
   end

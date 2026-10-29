@@ -42,7 +42,7 @@ module DeltaDB
         @repositories.each_value { |repository| repository.save(storage) }
       end
 
-      def restore(snapshots : Array(RepositorySnapshot)) : Nil
+      def restore(snapshots : Array(Snapshot)) : Nil
         @repositories.clear
         @remote_index.clear
         snapshots.each do |snapshot|

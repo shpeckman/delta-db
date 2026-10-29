@@ -10,17 +10,17 @@ module DeltaDB
         Worktree
       end
 
-      getter kind : MapEntryKind
+      getter kind : Kind
       getter register_value : String?
       getter blob : BlobRef?
       getter buffer : Buffer?
       getter nested_map : Map?
       getter worktree : Worktree?
-      getter version : Global
+      getter version : VersionVector
 
       def initialize(
-        @kind : MapEntryKind,
-        @version : Global,
+        @kind : Kind,
+        @version : VersionVector,
         @register_value : String? = nil,
         @blob : BlobRef? = nil,
         @buffer : Buffer? = nil,
@@ -29,24 +29,24 @@ module DeltaDB
       )
       end
 
-      def self.register(value : String, version : Global) : MapEntry
-        new(MapEntryKind::Register, version, register_value: value)
+      def self.register(value : String, version : VersionVector) : Entry
+        new(Kind::Register, version, register_value: value)
       end
 
-      def self.blob(value : BlobRef, version : Global) : MapEntry
-        new(MapEntryKind::Blob, version, blob: value)
+      def self.blob(value : Blob::Ref, version : VersionVector) : Entry
+        new(Kind::Blob, version, blob: value)
       end
 
-      def self.buffer(value : Buffer, version : Global) : MapEntry
-        new(MapEntryKind::Buffer, version, buffer: value)
+      def self.buffer(value : Buffer, version : VersionVector) : Entry
+        new(Kind::Buffer, version, buffer: value)
       end
 
-      def self.map(value : Map, version : Global) : MapEntry
-        new(MapEntryKind::Map, version, nested_map: value)
+      def self.map(value : Map, version : VersionVector) : Entry
+        new(Kind::Map, version, nested_map: value)
       end
 
-      def self.worktree(value : Worktree, version : Global) : MapEntry
-        new(MapEntryKind::Worktree, version, worktree: value)
+      def self.worktree(value : Worktree, version : VersionVector) : Entry
+        new(Kind::Worktree, version, worktree: value)
       end
     end
   end

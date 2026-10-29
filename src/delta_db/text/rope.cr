@@ -19,9 +19,9 @@ module DeltaDB
         build(text)
       end
 
-      def summary : TextSummary
+      def summary : Summary
         root = @root
-        root ? root.summary : TextSummary.zero
+        root ? root.summary : Summary.zero
       end
 
       def bytesize : Int32
@@ -86,9 +86,9 @@ module DeltaDB
 
       private def append_to(io : IO, node : RopeNode?) : Nil
         case node
-        when RopeLeaf
+        when Leaf
           io << node.chunk.text
-        when RopeConcat
+        when Concat
           append_to(io, node.left)
           append_to(io, node.right)
         else
@@ -117,29 +117,29 @@ module DeltaDB
         build_balanced(chunks, 0, chunks.size)
       end
 
-      def self.build_balanced(chunks : Array(Chunk), lo : Int32, hi : Int32) : RopeNode
+      def self.build_balanced(chunks : Array(Chunk), lo : Int32, hi : Int32) : Node
         if hi - lo == 1
-          RopeLeaf.new(chunks[lo])
+          Leaf.new(chunks[lo])
         else
           mid = (lo + hi) // 2
           left = build_balanced(chunks, lo, mid)
           right = build_balanced(chunks, mid, hi)
-          RopeConcat.new(left, right)
+          Concat.new(left, right)
         end
       end
 
       def self.concat(a : RopeNode?, b : RopeNode?) : RopeNode?
         return b if a.nil?
         return a if b.nil?
-        RopeConcat.new(a, b)
+        Concat.new(a, b)
       end
 
       def self.slice_node(node : RopeNode?, start : Int32, bytesize : Int32) : RopeNode?
         return nil if node.nil? || bytesize <= 0
         case node
-        when RopeLeaf
-          RopeLeaf.new(node.chunk.slice(start...(start + bytesize)))
-        when RopeConcat
+        when Leaf
+          Leaf.new(node.chunk.slice(start...(start + bytesize)))
+        when Concat
           left_len = node.left.summary.bytesize.to_i32
           if start >= left_len
             slice_node(node.right, start - left_len, bytesize)
@@ -155,9 +155,9 @@ module DeltaDB
 
       def self.offset_to_point(node : RopeNode?, offset : Int32) : Point
         case node
-        when RopeLeaf
+        when Leaf
           node.chunk.offset_to_point(offset)
-        when RopeConcat
+        when Concat
           left_len = node.left.summary.bytesize.to_i32
           if offset < left_len
             offset_to_point(node.left, offset)
@@ -171,9 +171,9 @@ module DeltaDB
 
       def self.point_to_offset(node : RopeNode?, point : Point) : Int32
         case node
-        when RopeLeaf
+        when Leaf
           node.chunk.point_to_offset(point)
-        when RopeConcat
+        when Concat
           left_lines = node.left.summary.lines
           if point < left_lines
             point_to_offset(node.left, point)
@@ -187,9 +187,9 @@ module DeltaDB
 
       def self.offset_to_point_utf16(node : RopeNode?, offset : Int32) : PointUtf16
         case node
-        when RopeLeaf
+        when Leaf
           node.chunk.offset_to_point_utf16(offset)
-        when RopeConcat
+        when Concat
           left_len = node.left.summary.bytesize.to_i32
           if offset < left_len
             offset_to_point_utf16(node.left, offset)
@@ -203,9 +203,9 @@ module DeltaDB
 
       def self.point_utf16_to_offset(node : RopeNode?, point : PointUtf16) : Int32
         case node
-        when RopeLeaf
+        when Leaf
           node.chunk.point_utf16_to_offset(point)
-        when RopeConcat
+        when Concat
           left_lines_utf16 = node.left.summary.lines_utf16
           if point < left_lines_utf16
             point_utf16_to_offset(node.left, point)

@@ -8,15 +8,15 @@ module DeltaDB
         @ids = ids.to_a.sort.uniq
       end
 
-      def self.from_id(id : DeltaBatchId) : HistoryVersion
+      def self.from_id(id : DeltaBatchId) : Version
         new([id])
       end
 
-      def self.from_ids(ids : Enumerable(DeltaBatchId)) : HistoryVersion
+      def self.from_ids(ids : Enumerable(DeltaBatchId)) : Version
         new(ids)
       end
 
-      def self.decode_version_text(text : String, actors : Hash(Int64, TimelineId)) : HistoryVersion
+      def self.decode_version_text(text : String, actors : Hash(Int64, TimelineId)) : Version
         return new if text.empty?
 
         ids = text.split(',').map do |entry|
@@ -46,12 +46,12 @@ module DeltaDB
         @ids.includes?(id)
       end
 
-      def union(id : DeltaBatchId) : HistoryVersion
-        contains?(id) ? self : HistoryVersion.new(@ids.dup << id)
+      def union(id : DeltaBatchId) : Version
+        contains?(id) ? self : Version.new(@ids.dup << id)
       end
 
-      def union(other : HistoryVersion) : HistoryVersion
-        HistoryVersion.new(@ids + other.ids)
+      def union(other : Version) : Version
+        Version.new(@ids + other.ids)
       end
 
       def encode_version_text(actors : Hash(UUID, Int64)) : String

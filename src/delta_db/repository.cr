@@ -4,11 +4,11 @@ module DeltaDB
     getter local_id : LocalRepositoryId
     getter remote_id : RemoteRepositoryId?
     getter replica : Replica(Map)
-    getter blob_store : BlobStore
+    getter blob_store : Blob::Store
 
     def initialize(@local_id : LocalRepositoryId, @remote_id : RemoteRepositoryId? = nil, history_id : HistoryId = HistoryId.random)
       @replica = Replica(Map).new(Map.new, history_id: history_id)
-      @blob_store = BlobStore.new
+      @blob_store = Blob::Store.new
     end
 
     def history : History::Dag
@@ -27,8 +27,8 @@ module DeltaDB
       @replica.apply_history_delta_batch(batch)
     end
 
-    def snapshot : RepositorySnapshot
-      RepositorySnapshot.new(
+    def snapshot : Snapshot
+      Snapshot.new(
         @local_id,
         @remote_id,
         history.checkpoint,
@@ -38,7 +38,7 @@ module DeltaDB
       )
     end
 
-    def self.from_snapshot(snapshot : RepositorySnapshot) : Repository
+    def self.from_snapshot(snapshot : Snapshot) : Repository
       repository = Repository.new(snapshot.local_id, snapshot.remote_id, snapshot.history.history_id)
       repository.replica.history = History::Dag.from_snapshot(snapshot.history)
       repository.map.restore(snapshot.entries)

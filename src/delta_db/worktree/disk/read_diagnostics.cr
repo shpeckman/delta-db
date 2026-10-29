@@ -12,15 +12,15 @@ module DeltaDB
         def initialize(@path : String, @bytes : UInt64, @duration : Time::Span)
         end
 
-        def self.load_file_blob(path : String) : {Bytes, FileReadDiagnostics}?
+        def self.load_file_blob(path : String) : {Bytes, ReadDiagnostics}?
           return nil unless File.exists?(path)
           started = Time.instant
           bytes = File.read(path).to_slice
           duration = Time.instant - started
-          {bytes, DeltaDB::FileReadDiagnostics.new(path, bytes.size.to_u64, duration)}
+          {bytes, ReadDiagnostics.new(path, bytes.size.to_u64, duration)}
         end
 
-        def self.warn_if_read_slow(diag : FileReadDiagnostics, threshold : Time::Span = DEFAULT_SLOW_THRESHOLD) : Nil
+        def self.warn_if_read_slow(diag : ReadDiagnostics, threshold : Time::Span = DEFAULT_SLOW_THRESHOLD) : Nil
           if diag.duration > threshold
             STDERR.puts "slow file read: #{diag.path} (#{diag.bytes} bytes in #{diag.duration.total_milliseconds.round(1)}ms)"
           end

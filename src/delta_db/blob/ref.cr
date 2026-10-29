@@ -9,7 +9,7 @@ module DeltaDB
       def initialize(@digest : String, @size : UInt64, @available : Bool = true)
       end
 
-      def resolve(store : BlobStore) : Bytes
+      def resolve(store : Store) : Bytes
         raise MissingBlobError.new("blob is unavailable: #{@digest}") unless @available
         store.get(self)
       end

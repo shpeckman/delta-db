@@ -21,9 +21,9 @@ module DeltaDB
         @subscribers.each { |sub| sub.call(value) }
       end
 
-      def subscribe(&block : T -> Nil) : EditSubscription(T)
+      def subscribe(&block : T -> Nil) : Subscription(T)
         @subscribers << block
-        EditSubscription(T).new(self, @subscribers.size - 1)
+        Subscription(T).new(self, @subscribers.size - 1)
       end
 
       protected def unsubscribe(index : Int32) : Nil

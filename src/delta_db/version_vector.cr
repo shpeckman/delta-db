@@ -4,8 +4,8 @@ module DeltaDB
     def initialize(@values : Array(UInt32) = [] of UInt32)
     end
 
-    def clone : Global
-      Global.new(@values.dup)
+    def clone : VersionVector
+      VersionVector.new(@values.dup)
     end
 
     def get(replica_id : ReplicaId) : UInt32
@@ -21,7 +21,7 @@ module DeltaDB
       @values[i] = Math.max(@values[i], timestamp.value)
     end
 
-    def join(other : Global) : Nil
+    def join(other : VersionVector) : Nil
       if other.@values.size > @values.size
         @values.concat(Array(UInt32).new(other.@values.size - @values.size, 0u32))
       end
@@ -30,7 +30,7 @@ module DeltaDB
       end
     end
 
-    def meet(other : Global) : Nil
+    def meet(other : VersionVector) : Nil
       if other.@values.size > @values.size
         @values.concat(Array(UInt32).new(other.@values.size - @values.size, 0u32))
       end
@@ -53,20 +53,20 @@ module DeltaDB
       get(timestamp.replica_id) >= timestamp.value
     end
 
-    def observed_any?(other : Global) : Bool
+    def observed_any?(other : VersionVector) : Bool
       other.@values.each_with_index.any? do |right, i|
         right > 0 && (@values[i]? || 0u32) >= right
       end
     end
 
-    def observed_all?(other : Global) : Bool
+    def observed_all?(other : VersionVector) : Bool
       return false if @values.size < other.@values.size
       other.@values.each_with_index.all? do |right, i|
         @values[i] >= right
       end
     end
 
-    def changed_since?(other : Global) : Bool
+    def changed_since?(other : VersionVector) : Bool
       return true if @values.size > other.@values.size
       @values.each_with_index.any? do |left, i|
         left > (other.@values[i]? || 0u32)
@@ -86,7 +86,7 @@ module DeltaDB
     end
 
     def to_s(io : IO) : Nil
-      io << "Global{"
+      io << "VersionVector{"
       first = true
       @values.each_with_index do |v, i|
         next if v == 0

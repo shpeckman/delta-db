@@ -1,12 +1,12 @@
 # spec/delta_db/file_read_diagnostics_spec.cr
 require "../spec_helper"
 
-describe DeltaDB::FileReadDiagnostics do
+describe DeltaDB::Worktree::Disk::ReadDiagnostics do
   it "loads a file blob with diagnostics" do
     path = File.tempname("delta-test", ".txt")
     begin
       File.write(path, "hello world")
-      result = DeltaDB::FileReadDiagnostics.load_file_blob(path)
+      result = DeltaDB::Worktree::Disk::ReadDiagnostics.load_file_blob(path)
       result.should_not be_nil
       bytes, diag = result.not_nil!
       bytes.should eq "hello world".to_slice
@@ -18,7 +18,7 @@ describe DeltaDB::FileReadDiagnostics do
   end
 
   it "does not warn for fast reads" do
-    diag = DeltaDB::FileReadDiagnostics.new("/tmp/x", 10u64, 1.millisecond)
-    DeltaDB::FileReadDiagnostics.warn_if_read_slow(diag)
+    diag = DeltaDB::Worktree::Disk::ReadDiagnostics.new("/tmp/x", 10u64, 1.millisecond)
+    DeltaDB::Worktree::Disk::ReadDiagnostics.warn_if_read_slow(diag)
   end
 end

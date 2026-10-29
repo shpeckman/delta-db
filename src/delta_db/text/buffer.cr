@@ -2,13 +2,13 @@
 module DeltaDB
   module Text
     class Buffer
-      getter snapshot : BufferSnapshot
+      getter snapshot : Snapshot
       getter history : UndoHistory
       getter lamport_clock : Clock
 
       def initialize(replica_id : ReplicaId, remote_id : BufferId, base_text : String)
         line_ending = base_text.includes?("\r\n") ? LineEnding::Crlf : LineEnding::Lf
-        @snapshot = BufferSnapshot.build(Eol.clean(base_text), remote_id, replica_id, line_ending)
+        @snapshot = Snapshot.build(LineEnding.normalize(base_text), remote_id, replica_id, line_ending)
         @history = UndoHistory.new(@snapshot.visible_text)
         @lamport_clock = Clock.new(Lamport.new(replica_id))
         @lamport_clock.observe(Lamport.new(ReplicaId::LOCAL)) unless base_text.empty?
@@ -22,7 +22,7 @@ module DeltaDB
         @snapshot.bytesize
       end
 
-      def version : Global
+      def version : VersionVector
         @snapshot.version.clone
       end
 
@@ -74,7 +74,7 @@ module DeltaDB
         entry ? undo_or_redo(entry.transaction) : nil
       end
 
-      def undo_or_redo(transaction : Transaction) : UndoOperation
+      def undo_or_redo(transaction : UndoHistory::Transaction) : UndoOperation
         counts = Hash(Lamport, UInt32).new
         transaction.edit_ids.each do |edit_id|
           counts[edit_id] = @snapshot.undo_map.undo_count(edit_id) + 1u32

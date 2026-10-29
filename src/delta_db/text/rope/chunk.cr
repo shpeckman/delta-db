@@ -112,9 +112,9 @@ module DeltaDB
           end
         end
 
-        def text_summary : TextSummary
+        def text_summary : Summary
           lr = longest_row
-          TextSummary.new(
+          Summary.new(
             bytesize: bytesize.to_u64,
             chars: @chars.popcount.to_u64,
             len_utf16: len_utf16,

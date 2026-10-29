@@ -5,9 +5,9 @@ module DeltaDB
       struct Transaction
         getter id : Lamport
         getter edit_ids : Array(Lamport)
-        getter start : Global
+        getter start : VersionVector
 
-        def initialize(@id : Lamport, @edit_ids : Array(Lamport) = [] of Lamport, @start : Global = Global.new)
+        def initialize(@id : Lamport, @edit_ids : Array(Lamport) = [] of Lamport, @start : VersionVector = VersionVector.new)
         end
       end
 

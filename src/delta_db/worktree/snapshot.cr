@@ -2,10 +2,10 @@
 module DeltaDB
   class Worktree
     class Snapshot
-      getter version : HistoryVersion
-      getter files : Array(WorktreeFile)
+      getter version : History::Version
+      getter files : Array(Entry)
 
-      def initialize(@version : HistoryVersion, @files : Array(WorktreeFile))
+      def initialize(@version : History::Version, @files : Array(Entry))
       end
 
       def file(path : String) : WorktreeFile?

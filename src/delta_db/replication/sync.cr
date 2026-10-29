@@ -59,7 +59,7 @@ module DeltaDB
         raise error
       end
 
-      def reset_local_timeline(dag : History::Dag, timeline : TimelineId, origin : HistoryVersion) : TimelineId
+      def reset_local_timeline(dag : History::Dag, timeline : TimelineId, origin : History::Version) : TimelineId
         reset = dag.reset_timeline(timeline, origin)
         @remote.reset_timeline(dag.history_id, timeline, origin)
         state = connection_state(dag.history_id)

@@ -5,11 +5,11 @@ private def replication_timeline(number : UInt64, generation : UInt32 = 0u32) : 
   DeltaDB::TimelineId.new(UUID.new("00000000-0000-0000-0000-#{number.to_s.rjust(12, '0')}"), generation)
 end
 
-private def replication_version(*ids : DeltaDB::DeltaBatchId) : DeltaDB::HistoryVersion
-  DeltaDB::HistoryVersion.from_ids(ids.to_a)
+private def replication_version(*ids : DeltaDB::DeltaBatchId) : DeltaDB::History::Version
+  DeltaDB::History::Version.from_ids(ids.to_a)
 end
 
-private def replication_batch(timeline : DeltaDB::TimelineId, ordinal : UInt64, parents : DeltaDB::HistoryVersion = DeltaDB::HistoryVersion.new, epoch : UInt64 = 0u64) : DeltaDB::History::Batch
+private def replication_batch(timeline : DeltaDB::TimelineId, ordinal : UInt64, parents : DeltaDB::History::Version = DeltaDB::History::Version.new, epoch : UInt64 = 0u64) : DeltaDB::History::Batch
   DeltaDB::History::Batch.new(
     DeltaDB::DeltaBatchId.new(timeline.uuid, ordinal),
     timeline,
@@ -65,7 +65,7 @@ describe "checkpoint and replication" do
     storage = DeltaDB::Storage.in_memory
     dag = replication_dag(DeltaDB::HistoryId.random)
     outbox = DeltaDB::Replication::Outbox.new(storage)
-    entry = outbox.append(DeltaDB::Replication::Pack.from(dag, DeltaDB::HistoryVersion.new))
+    entry = outbox.append(DeltaDB::Replication::Pack.from(dag, DeltaDB::History::Version.new))
 
     outbox.size.should eq 1
     outbox.fail(entry.id, "transport failed")
@@ -97,7 +97,7 @@ describe "checkpoint and replication" do
     local.batches.has_key?(remote_root.id).should be_true
     local.timeline_version.should eq remote.history(history).timeline_version
 
-    pack = remote.pack_for_history(history, DeltaDB::HistoryVersion.new)
+    pack = remote.pack_for_history(history, DeltaDB::History::Version.new)
     remote.install_pack(pack)
     remote.install_pack(pack)
     remote.packs.size.should eq 2
@@ -158,7 +158,7 @@ describe "checkpoint and replication" do
     storage = DeltaDB::Storage.in_memory
     dag = replication_dag(DeltaDB::HistoryId.random)
     outbox = DeltaDB::Replication::Outbox.new(storage)
-    entry = outbox.append(DeltaDB::Replication::Pack.from(dag, DeltaDB::HistoryVersion.new))
+    entry = outbox.append(DeltaDB::Replication::Pack.from(dag, DeltaDB::History::Version.new))
 
     expect_raises(JSON::ParseException) { DeltaDB::Replication::PackCodec.decode("{}") }
     outbox.retry(entry.id)

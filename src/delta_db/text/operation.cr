@@ -5,20 +5,20 @@ module DeltaDB
 
     struct EditOperation
       getter timestamp : Lamport
-      getter version : Global
+      getter version : VersionVector
       getter ranges : Array(Range(FullOffset, FullOffset))
       getter new_text : Array(String)
 
-      def initialize(@timestamp : Lamport, @version : Global, @ranges : Array(Range(FullOffset, FullOffset)), @new_text : Array(String))
+      def initialize(@timestamp : Lamport, @version : VersionVector, @ranges : Array(Range(FullOffset, FullOffset)), @new_text : Array(String))
       end
     end
 
     struct UndoOperation
       getter timestamp : Lamport
-      getter version : Global
+      getter version : VersionVector
       getter counts : Hash(Lamport, UInt32)
 
-      def initialize(@timestamp : Lamport, @version : Global, @counts : Hash(Lamport, UInt32))
+      def initialize(@timestamp : Lamport, @version : VersionVector, @counts : Hash(Lamport, UInt32))
       end
     end
 

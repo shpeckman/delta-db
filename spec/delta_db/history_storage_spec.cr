@@ -5,7 +5,7 @@ private def storage_timeline(number : UInt64, generation : UInt32 = 0u32) : Delt
   DeltaDB::TimelineId.new(UUID.new("00000000-0000-0000-0000-#{number.to_s.rjust(12, '0')}"), generation)
 end
 
-private def storage_batch(timeline : DeltaDB::TimelineId, ordinal : UInt64, parents : DeltaDB::HistoryVersion = DeltaDB::HistoryVersion.new, epoch : UInt64 = 0u64) : DeltaDB::History::Batch
+private def storage_batch(timeline : DeltaDB::TimelineId, ordinal : UInt64, parents : DeltaDB::History::Version = DeltaDB::History::Version.new, epoch : UInt64 = 0u64) : DeltaDB::History::Batch
   DeltaDB::History::Batch.new(
     DeltaDB::DeltaBatchId.new(timeline.uuid, ordinal),
     timeline,
@@ -16,8 +16,8 @@ private def storage_batch(timeline : DeltaDB::TimelineId, ordinal : UInt64, pare
   )
 end
 
-private def storage_version(*ids : DeltaDB::DeltaBatchId) : DeltaDB::HistoryVersion
-  DeltaDB::HistoryVersion.from_ids(ids.to_a)
+private def storage_version(*ids : DeltaDB::DeltaBatchId) : DeltaDB::History::Version
+  DeltaDB::History::Version.from_ids(ids.to_a)
 end
 
 private def populated_dag(history : DeltaDB::HistoryId) : DeltaDB::History::Dag
@@ -93,7 +93,7 @@ describe "history DAG storage" do
     timestamp = DeltaDB::Lamport.new(replica, 7u32)
     ids = [DeltaDB::DeltaId.random, DeltaDB::DeltaId.random]
 
-    storage.append_run(history, DeltaDB::DeltaRun.new(replica, timestamp, ids))
+    storage.append_run(history, DeltaDB::Storage::Run.new(replica, timestamp, ids))
     runs = storage.load_runs(history)
 
     runs.size.should eq 1

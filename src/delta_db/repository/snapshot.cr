@@ -5,7 +5,7 @@ module DeltaDB
       getter local_id : LocalRepositoryId
       getter remote_id : RemoteRepositoryId?
       getter history : History::Snapshot
-      getter entries : Hash(String, MapEntry)
+      getter entries : Hash(String, Map::Entry)
       getter blobs : Hash(String, Bytes)
       getter sealed_version : HistoryVersion?
 
@@ -13,7 +13,7 @@ module DeltaDB
         @local_id : LocalRepositoryId,
         @remote_id : RemoteRepositoryId?,
         @history : History::Snapshot,
-        @entries : Hash(String, MapEntry),
+        @entries : Hash(String, Map::Entry),
         @blobs : Hash(String, Bytes),
         @sealed_version : HistoryVersion? = nil,
       )

@@ -1,9 +1,9 @@
 # spec/delta_db/subscription_spec.cr
 require "../spec_helper"
 
-describe DeltaDB::EditTopic do
+describe DeltaDB::Text::EditTopic do
   it "publishes to subscribers until cancelled" do
-    topic = DeltaDB::EditTopic(Int32).new
+    topic = DeltaDB::Text::EditTopic(Int32).new
     received = [] of Int32
     sub = topic.subscribe { |v| received << v }
 

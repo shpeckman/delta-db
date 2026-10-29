@@ -2,11 +2,11 @@
 module DeltaDB
   class FragmentIndex
     struct AppliedEdit
-      getter fragment_id : FragmentId
+      getter fragment_id : Id
       getter range : Range(UInt32, UInt32)
       getter text : String
 
-      def initialize(@fragment_id : FragmentId, @range : Range(UInt32, UInt32), @text : String)
+      def initialize(@fragment_id : Id, @range : Range(UInt32, UInt32), @text : String)
       end
     end
   end

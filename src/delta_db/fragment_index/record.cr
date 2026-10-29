@@ -2,11 +2,11 @@
 module DeltaDB
   class FragmentIndex
     class Record
-      getter id : FragmentId
+      getter id : Id
       property text : String
-      getter origin : LiteralOrigin
+      getter origin : Origin
 
-      def initialize(@id : FragmentId, @text : String, @origin : LiteralOrigin)
+      def initialize(@id : Id, @text : String, @origin : Origin)
       end
     end
   end
