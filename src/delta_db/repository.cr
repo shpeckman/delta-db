@@ -55,5 +55,5 @@ module DeltaDB
   end
 end
 
-require "./delta_db/repository/snapshot"
-require "./delta_db/repository/store"
+require "./repository/snapshot"
+require "./repository/store"
