@@ -1,36 +1,36 @@
 # src/delta_db/client_operation.cr
 module DeltaDB
-  enum ClientOperationKind
-    SetRegister
-    SetBlob
-    SetBuffer
-    SetMap
-    SetWorktree
-    EditBuffer
-    EditWorktree
-    Delete
-    Seal
-  end
-
   class ClientOperation
-    getter kind : ClientOperationKind
+    enum Kind
+      SetRegister
+      SetBlob
+      SetBuffer
+      SetMap
+      SetWorktree
+      EditBuffer
+      EditWorktree
+      Delete
+      Seal
+    end
+
+    getter kind : Kind
     getter key : String
     getter text : String
     getter ranges : Array(Range(Int32, Int32))
     getter new_text : Array(String)
-    getter blob : BlobRef?
+    getter blob : Blob::Ref?
     getter buffer : Buffer?
     getter nested_map : Map?
     getter worktree : Worktree?
     getter file_delta : FileDelta?
 
     def initialize(
-      @kind : ClientOperationKind,
+      @kind : Kind,
       @key : String = "",
       @text : String = "",
       @ranges : Array(Range(Int32, Int32)) = [] of Range(Int32, Int32),
       @new_text : Array(String) = [] of String,
-      @blob : BlobRef? = nil,
+      @blob : Blob::Ref? = nil,
       @buffer : Buffer? = nil,
       @nested_map : Map? = nil,
       @worktree : Worktree? = nil,
@@ -39,39 +39,39 @@ module DeltaDB
     end
 
     def self.register(key : String, value : String) : ClientOperation
-      new(ClientOperationKind::SetRegister, key, text: value)
+      new(Kind::SetRegister, key, text: value)
     end
 
-    def self.blob(key : String, value : BlobRef) : ClientOperation
-      new(ClientOperationKind::SetBlob, key, blob: value)
+    def self.blob(key : String, value : Blob::Ref) : ClientOperation
+      new(Kind::SetBlob, key, blob: value)
     end
 
     def self.buffer(key : String, value : Buffer) : ClientOperation
-      new(ClientOperationKind::SetBuffer, key, buffer: value)
+      new(Kind::SetBuffer, key, buffer: value)
     end
 
     def self.map(key : String, value : Map) : ClientOperation
-      new(ClientOperationKind::SetMap, key, nested_map: value)
+      new(Kind::SetMap, key, nested_map: value)
     end
 
     def self.worktree(key : String, value : Worktree) : ClientOperation
-      new(ClientOperationKind::SetWorktree, key, worktree: value)
+      new(Kind::SetWorktree, key, worktree: value)
     end
 
     def self.buffer_edit(key : String, ranges : Array(Range(Int32, Int32)), new_text : Array(String)) : ClientOperation
-      new(ClientOperationKind::EditBuffer, key, ranges: ranges, new_text: new_text)
+      new(Kind::EditBuffer, key, ranges: ranges, new_text: new_text)
     end
 
     def self.worktree_edit(key : String, delta : FileDelta) : ClientOperation
-      new(ClientOperationKind::EditWorktree, key, file_delta: delta)
+      new(Kind::EditWorktree, key, file_delta: delta)
     end
 
     def self.delete(key : String) : ClientOperation
-      new(ClientOperationKind::Delete, key)
+      new(Kind::Delete, key)
     end
 
     def self.seal : ClientOperation
-      new(ClientOperationKind::Seal)
+      new(Kind::Seal)
     end
   end
 end

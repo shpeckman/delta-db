@@ -5,7 +5,7 @@ private def spec_timeline(number : UInt64, generation : UInt32 = 0u32) : DeltaDB
   DeltaDB::TimelineId.new(UUID.new("00000000-0000-0000-0000-#{number.to_s.rjust(12, '0')}"), generation)
 end
 
-private def spec_batch(timeline : DeltaDB::TimelineId, ordinal : UInt64, parents : DeltaDB::HistoryVersion = DeltaDB::HistoryVersion.new, epoch : UInt64 = 0u64) : DeltaDB::History::Batch
+private def spec_batch(timeline : DeltaDB::TimelineId, ordinal : UInt64, parents : DeltaDB::History::Version = DeltaDB::History::Version.new, epoch : UInt64 = 0u64) : DeltaDB::History::Batch
   DeltaDB::History::Batch.new(
     DeltaDB::DeltaBatchId.new(timeline.uuid, ordinal),
     timeline,
@@ -16,8 +16,8 @@ private def spec_batch(timeline : DeltaDB::TimelineId, ordinal : UInt64, parents
   )
 end
 
-private def version_of(*ids : DeltaDB::DeltaBatchId) : DeltaDB::HistoryVersion
-  DeltaDB::HistoryVersion.from_ids(ids.to_a)
+private def version_of(*ids : DeltaDB::DeltaBatchId) : DeltaDB::History::Version
+  DeltaDB::History::Version.from_ids(ids.to_a)
 end
 
 describe DeltaDB::History::Dag do

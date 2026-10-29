@@ -57,7 +57,7 @@ module DeltaDB
       end
 
       private def required(id : String) : Publication
-        @publications.fetch(id) { raise ArgumentError.new("missing checkpoint publication: #{id}") }
+        @publications.fetch(id) { raise NotFoundError.new("missing checkpoint publication: #{id}") }
       end
     end
   end

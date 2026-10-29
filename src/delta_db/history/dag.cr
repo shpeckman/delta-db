@@ -23,7 +23,7 @@ module DeltaDB
         dag
       end
 
-      def create_timeline(id : TimelineId, origin : HistoryVersion = HistoryVersion.new, parent : TimelineId? = nil) : Timeline
+      def create_timeline(id : TimelineId, origin : Version = Version.new, parent : TimelineId? = nil) : Timeline
         if @timelines.has_key?(id)
           raise ArgumentError.new("timeline already exists: #{id}")
         end
@@ -50,12 +50,8 @@ module DeltaDB
         @max_timestamp = Math.max(@max_timestamp, batch.id.ordinal)
         @epoch_count = Math.max(@epoch_count, batch.epoch)
         timeline = @timelines[batch.timeline]
-        timeline.head = if version_reaches(timeline.head, batch.parents)
-                          HistoryVersion.from_id(batch.id)
-                        else
-                          timeline.head.union(HistoryVersion.from_id(batch.id))
-                        end
-        @timelines[batch.timeline] = timeline
+        head = version_reaches(timeline.head, batch.parents) ? Version.from_id(batch.id) : timeline.head.union(batch.id)
+        @timelines[batch.timeline] = timeline.with_head(head)
       end
 
       def insert_on_timeline(batch : Batch) : Nil
@@ -65,32 +61,31 @@ module DeltaDB
         end
 
         insert_globally(batch)
-        timeline.head = HistoryVersion.from_id(batch.id)
-        @timelines[batch.timeline] = timeline
+        @timelines[batch.timeline] = @timelines[batch.timeline].with_head(Version.from_id(batch.id))
       end
 
       def advance_timeline(batch : Batch) : Nil
         insert_on_timeline(batch)
       end
 
-      def reset_timeline(id : TimelineId, origin : HistoryVersion) : TimelineId
-        source = @timelines.fetch(id) { raise ArgumentError.new("unknown timeline: #{id}") }
+      def reset_timeline(id : TimelineId, origin : Version) : TimelineId
+        source = @timelines.fetch(id) { raise NotFoundError.new("unknown timeline: #{id}") }
         reset_id = TimelineId.new(id.uuid, source.reset_generation + 1u32)
         create_timeline(reset_id, origin, id)
         reset_id
       end
 
-      def fork_timeline(source_id : TimelineId, target_id : TimelineId, at : HistoryVersion? = nil) : Timeline
-        source = @timelines.fetch(source_id) { raise ArgumentError.new("unknown timeline: #{source_id}") }
+      def fork_timeline(source_id : TimelineId, target_id : TimelineId, at : Version? = nil) : Timeline
+        source = @timelines.fetch(source_id) { raise NotFoundError.new("unknown timeline: #{source_id}") }
         create_timeline(target_id, at || source.head, source_id)
       end
 
-      def timeline_version(id : TimelineId) : HistoryVersion
-        @timelines.fetch(id) { raise ArgumentError.new("unknown timeline: #{id}") }.head
+      def timeline_version(id : TimelineId) : Version
+        @timelines.fetch(id) { raise NotFoundError.new("unknown timeline: #{id}") }.head
       end
 
-      def timeline_version : HistoryVersion
-        HistoryVersion.from_ids(@timelines.values.flat_map(&.head.ids))
+      def timeline_version : Version
+        Version.from_ids(@timelines.values.flat_map(&.head.ids))
       end
 
       def timeline_ids : Array(TimelineId)
@@ -98,7 +93,7 @@ module DeltaDB
       end
 
       def timeline_parent_id(id : TimelineId) : TimelineId?
-        @timelines.fetch(id) { raise ArgumentError.new("unknown timeline: #{id}") }.parent
+        @timelines.fetch(id) { raise NotFoundError.new("unknown timeline: #{id}") }.parent
       end
 
       def timeline_lineage(id : TimelineId) : Array(TimelineId)
@@ -111,35 +106,35 @@ module DeltaDB
         lineage
       end
 
-      def contains_version(version : HistoryVersion) : Bool
+      def contains_version(version : Version) : Bool
         version.ids.all? { |id| @batches.has_key?(id) }
       end
 
-      def contains_version(version : HistoryVersion, timeline_id : TimelineId) : Bool
+      def contains_version(version : Version, timeline_id : TimelineId) : Bool
         reachable = ancestor_ids(timeline_version(timeline_id))
         version.ids.all? { |id| reachable.includes?(id) }
       end
 
-      def version_reaches(ancestor : HistoryVersion, descendant : HistoryVersion) : Bool
+      def version_reaches(ancestor : Version, descendant : Version) : Bool
         return true if ancestor.empty?
         return false if descendant.empty?
         reachable = ancestor_ids(descendant)
         ancestor.ids.all? { |id| reachable.includes?(id) }
       end
 
-      def version_reached_by_all(ancestor : HistoryVersion, versions : Array(HistoryVersion)) : Bool
+      def version_reached_by_all(ancestor : Version, versions : Array(Version)) : Bool
         versions.all? { |version| version_reaches(ancestor, version) }
       end
 
-      def versions_reaching_ancestor(ancestor : HistoryVersion, versions : Array(HistoryVersion)) : Array(HistoryVersion)
+      def versions_reaching_ancestor(ancestor : Version, versions : Array(Version)) : Array(Version)
         versions.select { |version| version_reaches(ancestor, version) }
       end
 
-      def ancestors(version : HistoryVersion) : HistoryVersion
-        HistoryVersion.from_ids(ancestor_ids(version))
+      def ancestors(version : Version) : Version
+        Version.from_ids(ancestor_ids(version))
       end
 
-      def common_ancestor(a : HistoryVersion, b : HistoryVersion) : HistoryVersion
+      def common_ancestor(a : Version, b : Version) : Version
         return a if a == b
 
         left = ancestor_ids(a)
@@ -148,10 +143,10 @@ module DeltaDB
         maximal = shared.reject do |candidate|
           shared.any? { |other| candidate != other && reaches_id?(candidate, other) }
         end
-        HistoryVersion.from_ids(maximal)
+        Version.from_ids(maximal)
       end
 
-      def common_ancestor_since_epoch(a : HistoryVersion, b : HistoryVersion, epoch : UInt64) : HistoryVersion
+      def common_ancestor_since_epoch(a : Version, b : Version, epoch : UInt64) : Version
         left = ancestor_ids(a)
         right = ancestor_ids(b)
         shared = left.select do |id|
@@ -160,25 +155,25 @@ module DeltaDB
         maximal = shared.reject do |candidate|
           shared.any? { |other| candidate != other && reaches_id?(candidate, other) }
         end
-        HistoryVersion.from_ids(maximal)
+        Version.from_ids(maximal)
       end
 
-      def dominator(a : HistoryVersion, b : HistoryVersion) : HistoryVersion
+      def dominator(a : Version, b : Version) : Version
         common_ancestor(a, b)
       end
 
-      def branch_point_for_timelines(a : TimelineId, b : TimelineId) : HistoryVersion
+      def branch_point_for_timelines(a : TimelineId, b : TimelineId) : Version
         common_ancestor(timeline_version(a), timeline_version(b))
       end
 
-      def delta_headers_difference(a : HistoryVersion, b : HistoryVersion) : Array(Batch)
+      def delta_headers_difference(a : Version, b : Version) : Array(Batch)
         left = ancestor_ids(a)
         right = ancestor_ids(b)
         ids = left.reject { |id| right.includes?(id) }
         ids.sort.map { |id| @batches[id] }
       end
 
-      def deltas_between(a : HistoryVersion, b : HistoryVersion) : Array(Batch)
+      def deltas_between(a : Version, b : Version) : Array(Batch)
         delta_headers_difference(a, b)
       end
 
@@ -189,7 +184,7 @@ module DeltaDB
         epoch
       end
 
-      def epoch_of_version(version : HistoryVersion) : UInt64
+      def epoch_of_version(version : Version) : UInt64
         version.ids.max_of? { |id| @batches[id]?.try(&.epoch) || 0u64 } || 0u64
       end
 
@@ -225,9 +220,7 @@ module DeltaDB
           pending.delete(batch)
         end
         snapshot.timelines.each do |timeline|
-          restored = @timelines[timeline.id]
-          restored.head = timeline.head
-          @timelines[timeline.id] = restored
+          @timelines[timeline.id] = @timelines[timeline.id].with_head(timeline.head)
         end
       end
 
@@ -250,10 +243,8 @@ module DeltaDB
           pending.delete(batch)
         end
         snapshot.timelines.each do |timeline|
-          existing = @timelines[timeline.id]
           previous = previous_heads[timeline.id]?
-          existing.head = previous ? previous.union(timeline.head) : timeline.head
-          @timelines[timeline.id] = existing
+          @timelines[timeline.id] = @timelines[timeline.id].with_head(previous ? previous.union(timeline.head) : timeline.head)
         end
         snapshot.epochs.each do |epoch|
           @epochs << epoch unless @epochs.any? { |existing| existing.epoch == epoch.epoch }
@@ -263,7 +254,7 @@ module DeltaDB
         @epoch_count = Math.max(@epoch_count, snapshot.epoch_count)
       end
 
-      private def validate_version(version : HistoryVersion) : Nil
+      private def validate_version(version : Version) : Nil
         version.ids.each do |id|
           unless @batches.has_key?(id)
             raise ArgumentError.new("missing parent batch: #{id}")
@@ -271,7 +262,7 @@ module DeltaDB
         end
       end
 
-      private def ancestor_ids(version : HistoryVersion) : Array(DeltaBatchId)
+      private def ancestor_ids(version : Version) : Array(DeltaBatchId)
         visited = Set(DeltaBatchId).new
         pending = version.ids.dup
         until pending.empty?
@@ -287,7 +278,7 @@ module DeltaDB
 
       private def reaches_id?(ancestor : DeltaBatchId, descendant : DeltaBatchId) : Bool
         return true if ancestor == descendant
-        ancestor_ids(HistoryVersion.from_id(descendant)).includes?(ancestor)
+        ancestor_ids(Version.from_id(descendant)).includes?(ancestor)
       end
     end
   end

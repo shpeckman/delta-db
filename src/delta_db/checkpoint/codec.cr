@@ -39,12 +39,12 @@ module DeltaDB
         )
       end
 
-      def self.version_document(version : HistoryVersion) : Array(BatchIdDocument)
+      def self.version_document(version : History::Version) : Array(BatchIdDocument)
         version.ids.map { |id| BatchIdDocument.new(id.uuid.to_s, id.ordinal) }
       end
 
-      def self.version_snapshot(ids : Array(BatchIdDocument)) : HistoryVersion
-        HistoryVersion.from_ids(ids.map { |id| DeltaBatchId.new(UUID.new(id.uuid), id.ordinal) })
+      def self.version_snapshot(ids : Array(BatchIdDocument)) : History::Version
+        History::Version.from_ids(ids.map { |id| DeltaBatchId.new(UUID.new(id.uuid), id.ordinal) })
       end
 
       def self.timeline_document(id : TimelineId) : TimelineIdDocument

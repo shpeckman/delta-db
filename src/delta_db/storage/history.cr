@@ -79,7 +79,7 @@ module DeltaDB
               rs.read(Int64)
               version = rs.read(String?)
               id = timeline_actor_conn(conn, key, timeline_actor)
-              head = version ? decode_version_conn(conn, key, version) : HistoryVersion.new
+              head = version ? decode_version_conn(conn, key, version) : History::Version.new
               origin = head
               parent : TimelineId? = nil
               reset_generation = id.generation
@@ -152,7 +152,7 @@ module DeltaDB
       end
     end
 
-    def record_checkpoint(history : HistoryId, version : HistoryVersion) : Nil
+    def record_checkpoint(history : HistoryId, version : History::Version) : Nil
       @db.transaction do |tx|
         conn = tx.connection
         key = history_conn(conn, history)
@@ -165,7 +165,7 @@ module DeltaDB
       end
     end
 
-    def checkpoint_version(history : HistoryId) : HistoryVersion?
+    def checkpoint_version(history : HistoryId) : History::Version?
       key = @db.query_one?("SELECT history_key FROM histories WHERE history_uuid = ?", history.value.bytes.to_slice) do |rs|
         rs.read(Int64)
       end
@@ -204,7 +204,7 @@ module DeltaDB
       result
     end
 
-    def append_run(history : HistoryId, run : DeltaRun) : Nil
+    def append_run(history : HistoryId, run : Run) : Nil
       @db.transaction do |tx|
         conn = tx.connection
         key = history_conn(conn, history)
@@ -224,8 +224,8 @@ module DeltaDB
       end
     end
 
-    def load_runs(history : HistoryId) : Array(DeltaRun)
-      runs = [] of DeltaRun
+    def load_runs(history : HistoryId) : Array(Run)
+      runs = [] of Run
       @db.transaction do |tx|
         conn = tx.connection
         key = history_conn(conn, history)
@@ -238,7 +238,7 @@ module DeltaDB
             conn.query("SELECT delta_id FROM history_run_segments WHERE history_key = ? AND run_actor = ? AND run_timestamp = ? ORDER BY segment_index", key, actor, timestamp) do |segments|
               segments.each { ids << DeltaId.new(UUID.new(segments.read(String))) }
             end
-            runs << DeltaRun.new(replica, Lamport.new(replica, timestamp), ids)
+            runs << Run.new(replica, Lamport.new(replica, timestamp), ids)
           end
         end
       end
@@ -307,10 +307,10 @@ module DeltaDB
     end
 
     private def dag_timeline_for_batch(batch : History::Batch) : History::Timeline
-      History::Timeline.new(batch.timeline, HistoryVersion.from_id(batch.id), batch.parents)
+      History::Timeline.new(batch.timeline, History::Version.from_id(batch.id), batch.parents)
     end
 
-    private def version_row_conn(conn : DB::Connection, key : Int64, version : HistoryVersion) : {String, Int64}
+    private def version_row_conn(conn : DB::Connection, key : Int64, version : History::Version) : {String, Int64}
       text = encode_version_conn(conn, key, version)
       existing = conn.query_one?("SELECT version_key FROM history_versions WHERE history_key = ? AND version = ?", key, text) do |rs|
         rs.read(Int64)
@@ -322,18 +322,18 @@ module DeltaDB
       {text, version_key}
     end
 
-    private def encode_version_conn(conn : DB::Connection, key : Int64, version : HistoryVersion) : String
+    private def encode_version_conn(conn : DB::Connection, key : Int64, version : History::Version) : String
       actors = Hash(UUID, Int64).new
       version.ids.each { |id| actors[id.uuid] = actor_conn(conn, key, id.uuid.to_s) }
       version.encode_version_text(actors)
     end
 
-    private def decode_version_conn(conn : DB::Connection | DB::Database, key : Int64, text : String) : HistoryVersion
+    private def decode_version_conn(conn : DB::Connection | DB::Database, key : Int64, text : String) : History::Version
       actors = Hash(Int64, TimelineId).new
       conn.query("SELECT actor_ordinal, actor FROM history_actors WHERE history_key = ?", key) do |rs|
         rs.each { actors[rs.read(Int64)] = TimelineId.parse(rs.read(String)) }
       end
-      HistoryVersion.decode_version_text(text, actors)
+      History::Version.decode_version_text(text, actors)
     end
 
     private def timeline_actor_conn(conn : DB::Connection | DB::Database, key : Int64, ordinal : Int64) : TimelineId

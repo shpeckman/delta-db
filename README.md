@@ -11,7 +11,9 @@ crystal spec
 
 ## Identity and versions
 
-`HistoryVersion` is a sorted, deduplicated set of `DeltaBatchId` values. Use `from_id`, `from_ids`, `observe`, `union`, and `contains?` to construct and inspect versions.
+`ReplicaId`, `Lamport` (with `Lamport::Seq`), `Clock`, and `VersionVector` provide causality. `HistoryId`, `TimelineId`, `DeltaBatchId`, `ActorUuid`, and the repository IDs identify histories and actors.
+
+`History::Version` is a sorted, deduplicated set of `DeltaBatchId` values. Versions are immutable: `from_id`, `from_ids`, and `union` (with a `DeltaBatchId` or another `History::Version`) return new values; `contains?`, `size`, and `empty?` inspect them.
 
 Persisted version text is a comma-separated list of `actor_ordinal:timestamp` entries. `encode_version_text` accepts a `Hash(UUID, Int64)` keyed by timeline UUID. `decode_version_text` accepts a `Hash(Int64, TimelineId)` keyed by actor ordinal. Empty text represents an empty version. Malformed entries and unknown actors raise `ArgumentError`.
 
@@ -19,7 +21,7 @@ Persisted version text is a comma-separated list of `actor_ordinal:timestamp` en
 require "delta-db"
 
 first = DeltaDB::DeltaBatchId.new(UUID.random, 1_u64)
-version = DeltaDB::HistoryVersion.from_id(first)
+version = DeltaDB::History::Version.from_id(first)
 version.contains?(first) # => true
 ```
 
@@ -42,11 +44,13 @@ forked = dag.fork_timeline(timeline, DeltaDB::TimelineId.random)
 
 ## Client models and repositories
 
-`Map` stores typed register, blob, buffer, nested-map, and worktree entries. `ClientBuffer` wraps the text CRDT engine with anchors, editing, snapshots, and sealing. `ClientOperation` describes typed map/buffer/worktree changes, and `DeltaApplication` applies them. `Replica(T)` applies deltas into a `History::Dag`, tracks outgoing batches, and enforces sealing.
+`Map` stores typed register, blob, buffer, nested-map, and worktree entries. `Buffer` wraps the text CRDT engine with anchors, editing, snapshots, and sealing. `ClientOperation` (with `ClientOperation::Kind`) describes typed map/buffer/worktree changes; `Map#apply`, `Buffer#apply`, and `Worktree#apply` apply a `Delta` carrying one. Map entries are `Map::Entry` values tagged by `Map::Entry::Kind`. `Replica(T)` applies deltas into a `History::Dag`, tracks outgoing batches, and enforces sealing.
 
-`BlobStore` content-addresses payloads with SHA-256. `Worktree` applies file deltas, maintains text and blobs, and restores `WorktreeSnapshot` values. `WorktreeText` edits files through client buffers and builds `FragmentIndex` values. `FragmentIndex#apply` executes sorted, non-overlapping `EditPlan` splices.
+`Blob::Store` content-addresses payloads with SHA-256 and returns `Blob::Ref` handles. `Worktree` applies `FileDelta` values (`FileDelta::CreateFile`, `Edit`, `Delete`, `Rename`, `SetMode`, `SetLineEndings`, `CreateDir`, `CreateSymlink`), maintains text and blobs, and restores `Worktree::Snapshot` values. `Worktree::Editor` edits files through client buffers and builds `FragmentIndex` values. `FragmentIndex#apply` executes sorted, non-overlapping `FragmentIndex::EditPlan` splices; `FragmentIndex.valid_ranges?` checks that ordering.
 
-`Repository` combines a typed map, DAG replica, and blob store. `RepositorySnapshot` preserves all three. `RepositoryStore` manages local/shared repositories, while `Client` applies local/remote batches and drains confirmed outgoing deltas.
+`Worktree::Disk` scans directories and loads files with `Worktree::Disk::ReadDiagnostics`. `Worktree::GitAttributes` parses git config booleans and `EolConfig` values.
+
+`Repository` combines a typed map, DAG replica, and blob store. `Repository::Snapshot` preserves all three. `Repository::Store` manages local/shared repositories, while `Client` applies local/remote batches and drains confirmed outgoing deltas.
 
 ```crystal
 client = DeltaDB::Client.new
@@ -59,10 +63,10 @@ repository.map.get("status") # => "ready"
 
 ## Text CRDT buffers
 
-`TextBuffer` applies local edits, exchanges full-offset operations with replicas, resolves timestamped anchors, and generates/applies undo operations. `BufferSnapshot` exposes visible text, deleted text, fragments, insertion metadata, version state, and causal deferral.
+`Text::Buffer` applies local edits, exchanges full-offset operations with replicas, resolves timestamped anchors, and generates/applies undo operations. `Text::Snapshot` exposes visible text, deleted text, fragments, insertion metadata, version state, and causal deferral.
 
 ```crystal
-buffer = DeltaDB::TextBuffer.new(DeltaDB::ReplicaId::LOCAL, DeltaDB::BufferId.new(1_u64), "abc")
+buffer = DeltaDB::Text::Buffer.new(DeltaDB::ReplicaId::LOCAL, DeltaDB::Text::BufferId.new(1_u64), "abc")
 operation = buffer.edit([{1...2, "X"}])
 buffer.text # => "aXc"
 
@@ -71,7 +75,9 @@ buffer.undo
 buffer.text # => "abc"
 ```
 
-Remote operations carry the sender's causal `version`. Operations arriving before their dependencies remain deferred. Duplicate timestamps are applied once. `Network(T)` provides seeded duplicate/out-of-order delivery for convergence testing. `check_invariants` verifies fragment ordering, text lengths, and visible/deleted rope consistency.
+Remote operations carry the sender's causal `version`. Operations arriving before their dependencies remain deferred. Duplicate timestamps are applied once. `check_invariants` raises `InvariantError` unless it verifies fragment ordering, text lengths, and visible/deleted rope consistency.
+
+`Text::Rope` stores text in `Text::Rope::Chunk` leaves summarized by `Text::Summary`, addressed by `Text::Point`, `Text::PointUtf16`, and `Text::OffsetUtf16`. `Text::LineEnding.normalize` converts CRLF/CR to LF and `Text::LineEnding#apply` renders text with that ending. `Text::Diff`, `Text::Patch`, `Text::Selection`, and `Text::EditTopic` provide diffing, edit composition, selections, and edit subscriptions.
 
 ## SQLite storage
 
@@ -105,6 +111,12 @@ state = sync.connection_state(dag.history_id)
 ```
 
 Checkpoint publication, outbox, and connection state use schema version 3. `checkpoint_publication(s)`, `replication_outbox_entries`, and `load_history_connection_state` recover durable state.
+
+## Errors
+
+Library errors inherit from `DeltaDB::Error`. `NotFoundError` reports missing timelines, paths, buffers, fragments, repositories, and checkpoint publications. `SealedError` rejects mutation of sealed buffers, maps, worktrees, and replicas. `MissingBlobError` reports absent or unavailable blob content. `InvariantError` reports failed `check_invariants`. Malformed input raises `ArgumentError`.
+
+Lengths follow Crystal conventions: `bytesize` counts bytes (`Text::Rope::Chunk`, `Text::Rope`, `Text::Snapshot`, `Text::Buffer`, `Buffer`, `Text::Fragment`, `Text::Summary`) and `size` counts elements.
 
 ## Populated Delta differential test
 

@@ -1,7 +1,5 @@
 # src/delta_db/delta.cr
 module DeltaDB
-  # A single delta: its storage identity is `(history, actor, timestamp)` plus a
-  # byte payload.
   struct Delta
     getter history : HistoryId
     getter timeline : TimelineId

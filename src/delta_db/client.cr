@@ -1,10 +1,10 @@
 # src/delta_db/client.cr
 module DeltaDB
   class Client
-    getter store : RepositoryStore
+    getter store : Repository::Store
 
     def initialize
-      @store = RepositoryStore.new
+      @store = Repository::Store.new
       @outgoing = [] of History::Batch
     end
 
@@ -22,7 +22,7 @@ module DeltaDB
     end
 
     def open_repository(id : LocalRepositoryId) : Repository
-      @store.get(id) || raise ArgumentError.new("missing repository: #{id}")
+      @store.get(id) || raise NotFoundError.new("missing repository: #{id}")
     end
 
     def open_shared_repository(remote_id : RemoteRepositoryId) : Repository

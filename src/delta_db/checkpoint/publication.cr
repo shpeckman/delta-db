@@ -12,12 +12,12 @@ module DeltaDB
 
       getter id : String
       getter history_id : HistoryId
-      getter version : HistoryVersion
+      getter version : History::Version
       getter encoded : String
       property phase : Phase
       property last_error : String?
 
-      def initialize(@id : String, @history_id : HistoryId, @version : HistoryVersion, @encoded : String, @phase : Phase = Phase::Prepared, @last_error : String? = nil)
+      def initialize(@id : String, @history_id : HistoryId, @version : History::Version, @encoded : String, @phase : Phase = Phase::Prepared, @last_error : String? = nil)
       end
     end
   end
