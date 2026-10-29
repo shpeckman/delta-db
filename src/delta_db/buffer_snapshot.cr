@@ -52,8 +52,8 @@ module DeltaDB
       @deleted_text.to_s
     end
 
-    def len : Int32
-      @visible_text.len
+    def bytesize : Int32
+      @visible_text.bytesize
     end
 
     def empty? : Bool
@@ -69,7 +69,7 @@ module DeltaDB
       operation_text = [] of String
       (ranges.size - 1).downto(0) do |index|
         range = ranges[index]
-        if range.begin < 0 || range.end < range.begin || range.end > len
+        if range.begin < 0 || range.end < range.begin || range.end > bytesize
           raise ArgumentError.new("edit range outside buffer: #{range}")
         end
 
@@ -81,7 +81,7 @@ module DeltaDB
         operation_text.unshift(replacement)
       end
       rebuild_text
-      EditOperation.new(timestamp, @version.deep_clone, operation_ranges, operation_text)
+      EditOperation.new(timestamp, @version.clone, operation_ranges, operation_text)
     end
 
     def apply_ops(ops : Array(Operation)) : Array(Operation)
@@ -106,7 +106,7 @@ module DeltaDB
       applied
     end
 
-    def apply_op(op : Operation) : Array(Operation)
+    def apply(op : Operation) : Array(Operation)
       apply_ops([op])
     end
 
@@ -129,7 +129,7 @@ module DeltaDB
     def offset_for_anchor(anchor : Anchor) : Int32?
       return nil if anchor.buffer_id != @remote_id
       return 0 if anchor.min?
-      return len if anchor.max?
+      return bytesize if anchor.max?
       return nil unless @version.observed?(anchor.timestamp)
 
       candidates = @insertions.select { |insertion| insertion.timestamp == anchor.timestamp }
@@ -146,12 +146,12 @@ module DeltaDB
       visible_offset = 0
       @fragments.each do |candidate|
         break if candidate.id == fragment.id
-        visible_offset += candidate.len.to_i32 if candidate.visible
+        visible_offset += candidate.bytesize.to_i32 if candidate.visible
       end
       return visible_offset unless fragment.visible
 
       relative = anchor.offset.to_i32 - fragment.insertion_offset.to_i32
-      relative = relative.clamp(0, fragment.len.to_i32)
+      relative = relative.clamp(0, fragment.bytesize.to_i32)
       visible_offset + relative
     end
 
@@ -161,7 +161,7 @@ module DeltaDB
         if fragment.id <= previous_id
           raise "fragment ids are not strictly ordered"
         end
-        if fragment.len != fragment.text.bytesize
+        if fragment.bytesize != fragment.text.bytesize
           raise "fragment length does not match its text"
         end
         previous_id = fragment.id
@@ -220,7 +220,7 @@ module DeltaDB
       full_offset = 0u32
       @fragments.each do |fragment|
         observed = version.observed?(fragment.timestamp)
-        span = observed ? fragment.len : 0u32
+        span = observed ? fragment.bytesize : 0u32
         fragment_start = full_offset
         fragment_end = fragment_start + span
 
@@ -257,8 +257,8 @@ module DeltaDB
           end
 
           suffix_start = intersection_end - fragment_start
-          if suffix_start < fragment.len
-            updated << fragment_piece(fragment, suffix_start, fragment.len - suffix_start, fragment.id, fragment.visible, fragment.deletions.dup)
+          if suffix_start < fragment.bytesize
+            updated << fragment_piece(fragment, suffix_start, fragment.bytesize - suffix_start, fragment.id, fragment.visible, fragment.deletions.dup)
           end
         end
         full_offset = fragment_end
@@ -284,7 +284,7 @@ module DeltaDB
         length,
         visible,
         deletions,
-        fragment.max_undos.deep_clone,
+        fragment.max_undos.clone,
         fragment.text.byte_slice(start.to_i32, length.to_i32),
       )
     end
@@ -294,32 +294,32 @@ module DeltaDB
       full_offset = 0
       @fragments.each do |fragment|
         if fragment.visible
-          fragment_end = visible_offset + fragment.len.to_i32
+          fragment_end = visible_offset + fragment.bytesize.to_i32
           return full_offset + target - visible_offset if target < fragment_end
           visible_offset = fragment_end
         end
-        full_offset += fragment.len.to_i32
+        full_offset += fragment.bytesize.to_i32
       end
       full_offset
     end
 
     private def anchor_at_offset(offset : Int32, bias : Bias) : Anchor
-      if offset < 0 || offset > len
+      if offset < 0 || offset > bytesize
         raise ArgumentError.new("anchor offset outside buffer: #{offset}")
       end
       return Anchor.min_for_buffer(@remote_id) if offset == 0 && bias.left?
-      return Anchor.max_for_buffer(@remote_id) if offset == len && bias.right?
+      return Anchor.max_for_buffer(@remote_id) if offset == bytesize && bias.right?
 
       visible_fragments = @fragments.select(&.visible)
       visible_offset = 0
       visible_fragments.each_with_index do |fragment, index|
-        fragment_end = visible_offset + fragment.len.to_i32
+        fragment_end = visible_offset + fragment.bytesize.to_i32
         if offset < fragment_end || (offset == fragment_end && index == visible_fragments.size - 1)
           relative = offset - visible_offset
           if bias.left? && relative == 0 && index > 0
             previous = visible_fragments[index - 1]
-            return Anchor.new(previous.timestamp, previous.insertion_offset + previous.len, bias, @remote_id)
-          elsif bias.right? && relative == fragment.len.to_i32 && index < visible_fragments.size - 1
+            return Anchor.new(previous.timestamp, previous.insertion_offset + previous.bytesize, bias, @remote_id)
+          elsif bias.right? && relative == fragment.bytesize.to_i32 && index < visible_fragments.size - 1
             following = visible_fragments[index + 1]
             return Anchor.new(following.timestamp, following.insertion_offset, bias, @remote_id)
           else

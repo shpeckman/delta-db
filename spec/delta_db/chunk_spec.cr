@@ -22,8 +22,8 @@ describe DeltaDB::Chunk do
   end
 
   it "reports byte length and utf16 length" do
-    DeltaDB::Chunk.new("hello").len.should eq 5
-    DeltaDB::Chunk.new("héllo").len.should eq 6
+    DeltaDB::Chunk.new("hello").bytesize.should eq 5
+    DeltaDB::Chunk.new("héllo").bytesize.should eq 6
     DeltaDB::Chunk.new("😀").len_utf16.value.should eq 2
     DeltaDB::Chunk.new("abc").len_utf16.value.should eq 3
   end
@@ -37,7 +37,7 @@ describe DeltaDB::Chunk do
   it "round-trips offset -> point -> offset at every char boundary" do
     ["hello", "a\nbb\nccc", "héllo\nwörld\n"].each do |s|
       chunk = DeltaDB::Chunk.new(s)
-      (0..chunk.len).each do |offset|
+      (0..chunk.bytesize).each do |offset|
         next unless chunk.is_char_boundary(offset)
         point = chunk.offset_to_point(offset)
         chunk.point_to_offset(point).should eq offset
@@ -48,7 +48,7 @@ describe DeltaDB::Chunk do
   it "round-trips offset -> utf16 offset -> offset" do
     ["abc", "héllo", "😀😀", "a😀b\nc"].each do |s|
       chunk = DeltaDB::Chunk.new(s)
-      (0..chunk.len).each do |offset|
+      (0..chunk.bytesize).each do |offset|
         next unless chunk.is_char_boundary(offset)
         utf16 = chunk.offset_to_offset_utf16(offset)
         chunk.offset_utf16_to_offset(utf16).should eq offset

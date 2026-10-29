@@ -56,7 +56,7 @@ module DeltaDB
       r == 0 ? @replica_id <=> other.replica_id : r
     end
 
-    def as_u64 : UInt64
+    def to_u64 : UInt64
       (@value.to_u64 << 32) | @replica_id.value.to_u64
     end
   end
@@ -82,7 +82,7 @@ module DeltaDB
     def initialize(@values : Array(UInt32) = [] of UInt32)
     end
 
-    def deep_clone : Global
+    def clone : Global
       Global.new(@values.dup)
     end
 

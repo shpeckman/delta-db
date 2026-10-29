@@ -46,8 +46,8 @@ module DeltaDB
       root ? root.summary : TextSummary.zero
     end
 
-    def len : Int32
-      summary.len.to_i32
+    def bytesize : Int32
+      summary.bytesize.to_i32
     end
 
     def chars : UInt64
@@ -86,7 +86,7 @@ module DeltaDB
 
     def replace(range : Range(Int32, Int32), text : String) : Rope
       left = slice(0...range.begin)
-      right = slice(range.end...len)
+      right = slice(range.end...bytesize)
       (left + Rope.build(text)) + right
     end
 
@@ -156,20 +156,20 @@ module DeltaDB
       RopeConcat.new(a, b)
     end
 
-    def self.slice_node(node : RopeNode?, start : Int32, len : Int32) : RopeNode?
-      return nil if node.nil? || len <= 0
+    def self.slice_node(node : RopeNode?, start : Int32, bytesize : Int32) : RopeNode?
+      return nil if node.nil? || bytesize <= 0
       case node
       when RopeLeaf
-        RopeLeaf.new(node.chunk.slice(start...(start + len)))
+        RopeLeaf.new(node.chunk.slice(start...(start + bytesize)))
       when RopeConcat
-        left_len = node.left.summary.len.to_i32
+        left_len = node.left.summary.bytesize.to_i32
         if start >= left_len
-          slice_node(node.right, start - left_len, len)
-        elsif start + len <= left_len
-          slice_node(node.left, start, len)
+          slice_node(node.right, start - left_len, bytesize)
+        elsif start + bytesize <= left_len
+          slice_node(node.left, start, bytesize)
         else
           left_part = slice_node(node.left, start, left_len - start)
-          right_part = slice_node(node.right, 0, len - (left_len - start))
+          right_part = slice_node(node.right, 0, bytesize - (left_len - start))
           concat(left_part, right_part)
         end
       end
@@ -180,7 +180,7 @@ module DeltaDB
       when RopeLeaf
         node.chunk.offset_to_point(offset)
       when RopeConcat
-        left_len = node.left.summary.len.to_i32
+        left_len = node.left.summary.bytesize.to_i32
         if offset < left_len
           offset_to_point(node.left, offset)
         else
@@ -200,7 +200,7 @@ module DeltaDB
         if point < left_lines
           point_to_offset(node.left, point)
         else
-          node.left.summary.len.to_i32 + point_to_offset(node.right, point - left_lines)
+          node.left.summary.bytesize.to_i32 + point_to_offset(node.right, point - left_lines)
         end
       else
         0
@@ -212,7 +212,7 @@ module DeltaDB
       when RopeLeaf
         node.chunk.offset_to_point_utf16(offset)
       when RopeConcat
-        left_len = node.left.summary.len.to_i32
+        left_len = node.left.summary.bytesize.to_i32
         if offset < left_len
           offset_to_point_utf16(node.left, offset)
         else
@@ -232,7 +232,7 @@ module DeltaDB
         if point < left_lines_utf16
           point_utf16_to_offset(node.left, point)
         else
-          node.left.summary.len.to_i32 + point_utf16_to_offset(node.right, point - left_lines_utf16)
+          node.left.summary.bytesize.to_i32 + point_utf16_to_offset(node.right, point - left_lines_utf16)
         end
       else
         0

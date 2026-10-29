@@ -38,7 +38,7 @@ describe DeltaDB::Rope do
   it "round-trips offset -> point -> offset at every byte offset" do
     ["hello", "a\nbb\nccc", ("mixed\nlines\n" * 25), "héllo\nwörld\n"].each do |s|
       rope = DeltaDB::Rope.build(s)
-      (0..rope.len).each do |offset|
+      (0..rope.bytesize).each do |offset|
         rope.point_to_offset(rope.offset_to_point(offset)).should eq offset
       end
     end

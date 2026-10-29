@@ -120,15 +120,15 @@ describe DeltaDB::TextBuffer do
     first = one.edit([{1...2, "X"}])
     second = one.edit([{3...3, "Y"}])
 
-    two.apply_op(second)
+    two.apply(second)
     two.text.should eq "abc"
     two.deferred_ops_len.should eq 1
-    two.apply_op(first)
+    two.apply(first)
     two.text.should eq one.text
     two.deferred_ops_len.should eq 0
     undo = one.undo.not_nil!
     three = new_buffer(3u16, "abc")
-    three.apply_op(undo)
+    three.apply(undo)
     three.deferred_ops_len.should eq 1
     three.apply_ops([second, first])
     three.text.should eq "aXc"
@@ -142,7 +142,7 @@ describe DeltaDB::TextBuffer do
     timestamp = DeltaDB::Lamport.new(DeltaDB::ReplicaId.new(2u16), 10u32)
     operation = DeltaDB::EditOperation.new(timestamp, buffer.version, [1u32...4u32], [""])
 
-    buffer.apply_op(operation)
+    buffer.apply(operation)
     buffer.text.should eq "afgh"
     buffer.undo_operations({timestamp => UInt32::MAX})
     buffer.text.should eq "abfgh"
@@ -164,8 +164,8 @@ describe DeltaDB::TextBuffer do
           network.broadcast(buffer.replica_id, [operation.as(DeltaDB::Operation)])
         end
       else
-        start = random.rand(buffer.len + 1)
-        finish = start + random.rand(buffer.len - start + 1)
+        start = random.rand(buffer.bytesize + 1)
+        finish = start + random.rand(buffer.bytesize - start + 1)
         replacement = ["X", "yz", "", "Q"][random.rand(4)]
         operation = buffer.edit([{start...finish, replacement}])
         network.broadcast(buffer.replica_id, [operation.as(DeltaDB::Operation)])

@@ -82,8 +82,8 @@ module DeltaDB
           catchup = old_edit.old.begin - old_start
           old_start += catchup
           new_start += catchup
-          old_end = old_start + old_edit.old_len
-          new_end = new_start + old_edit.new_len
+          old_end = old_start + old_edit.old_size
+          new_end = new_start + old_edit.new_size
           composed << Edit(T).new(old_start..old_end, new_start..new_end)
           old_start = old_end
           new_start = new_end
@@ -95,8 +95,8 @@ module DeltaDB
           catchup = new_edit.new.begin - new_start
           old_start += catchup
           new_start += catchup
-          old_end = old_start + new_edit.old_len
-          new_end = new_start + new_edit.new_len
+          old_end = old_start + new_edit.old_size
+          new_end = new_start + new_edit.new_size
           composed << Edit(T).new(old_start..old_end, new_start..new_end)
           old_start = old_end
           new_start = new_end
@@ -134,16 +134,16 @@ module DeltaDB
           oe = old_edits[old_idx]
           ne = new_edits[new_idx]
           if oe.new.end > ne.old.end
-            old_end = old_start + Math.min(oe.old_len, ne.old_len)
-            new_end = new_start + ne.new_len
+            old_end = old_start + Math.min(oe.old_size, ne.old_size)
+            new_end = new_start + ne.new_size
             composed << Edit(T).new(old_start..old_end, new_start..new_end)
             old_edits[old_idx] = Edit(T).new(old_end..oe.old.end, ne.old.end..oe.new.end)
             old_start = old_end
             new_start = new_end
             new_idx += 1
           else
-            old_end = old_start + oe.old_len
-            new_end = new_start + Math.min(oe.new_len, ne.new_len)
+            old_end = old_start + oe.old_size
+            new_end = new_start + Math.min(oe.new_size, ne.new_size)
             composed << Edit(T).new(old_start..old_end, new_start..new_end)
             new_edits[new_idx] = Edit(T).new(oe.new.end..ne.old.end, new_end..ne.new.end)
             old_start = old_end

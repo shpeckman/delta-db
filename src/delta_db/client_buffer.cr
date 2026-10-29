@@ -24,11 +24,11 @@ module DeltaDB
       @text_buffer.snapshot.fragments
     end
 
-    def as_snapshot : BufferSnapshot
+    def snapshot : BufferSnapshot
       @text_buffer.snapshot
     end
 
-    def as_rope : Rope
+    def to_rope : Rope
       @text_buffer.snapshot.visible_text
     end
 
@@ -36,8 +36,8 @@ module DeltaDB
       @text_buffer.text
     end
 
-    def len : Int32
-      @text_buffer.len
+    def bytesize : Int32
+      @text_buffer.bytesize
     end
 
     def edit_as_actor(edits : Array({Range(Int32, Int32), String})) : EditOperation
@@ -47,7 +47,7 @@ module DeltaDB
 
     def apply_operation(operation : Operation) : Array(Operation)
       @seal_state.ensure_mutable!
-      @text_buffer.apply_op(operation)
+      @text_buffer.apply(operation)
     end
 
     def create_anchor(offset : Int32, bias : Bias) : Anchor

@@ -22,7 +22,7 @@ describe DeltaDB::Clock do
 
     it "packs into u64" do
       l = DeltaDB::Lamport.new(DeltaDB::ReplicaId.new(3u16), 0x12345678u32)
-      l.as_u64.should eq (0x12345678u64 << 32) | 3u64
+      l.to_u64.should eq (0x12345678u64 << 32) | 3u64
     end
   end
 

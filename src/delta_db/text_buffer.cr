@@ -17,12 +17,12 @@ module DeltaDB
       @snapshot.text
     end
 
-    def len : Int32
-      @snapshot.len
+    def bytesize : Int32
+      @snapshot.bytesize
     end
 
     def version : Global
-      @snapshot.version.deep_clone
+      @snapshot.version.clone
     end
 
     def remote_id : BufferId
@@ -51,7 +51,7 @@ module DeltaDB
       applied
     end
 
-    def apply_op(op : Operation) : Array(Operation)
+    def apply(op : Operation) : Array(Operation)
       apply_ops([op])
     end
 
@@ -83,8 +83,8 @@ module DeltaDB
 
     def undo_operations(counts : Hash(Lamport, UInt32)) : UndoOperation
       timestamp = @lamport_clock.tick
-      operation = UndoOperation.new(timestamp, @snapshot.version.deep_clone, counts)
-      @snapshot.apply_op(operation)
+      operation = UndoOperation.new(timestamp, @snapshot.version.clone, counts)
+      @snapshot.apply(operation)
       @snapshot.version.observe(timestamp)
       @history.push(operation)
       operation

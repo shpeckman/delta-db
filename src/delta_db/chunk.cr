@@ -53,7 +53,7 @@ module DeltaDB
       MAX_BASE
     end
 
-    def len : Int32
+    def bytesize : Int32
       @text.bytesize
     end
 
@@ -67,7 +67,7 @@ module DeltaDB
 
     def lines : Point
       row = @newlines.popcount.to_u32
-      column = (@newlines.leading_zeros_count.to_i32 - (MAX_BASE - len)).to_u32
+      column = (@newlines.leading_zeros_count.to_i32 - (MAX_BASE - bytesize)).to_u32
       Point.new(row, column)
     end
 
@@ -113,7 +113,7 @@ module DeltaDB
     def text_summary : TextSummary
       lr = longest_row
       TextSummary.new(
-        len: len.to_u64,
+        bytesize: bytesize.to_u64,
         chars: @chars.popcount.to_u64,
         len_utf16: len_utf16,
         lines: lines,
@@ -159,7 +159,7 @@ module DeltaDB
     end
 
     def point_to_offset(point : Point) : Int32
-      return len if point.row > lines.row
+      return bytesize if point.row > lines.row
       range = offset_range_for_row(point.row)
       return range.end if point.column > (range.end - range.begin).to_u32
       range.begin + point.column.to_i32
@@ -195,7 +195,7 @@ module DeltaDB
     end
 
     def point_utf16_to_offset(point : PointUtf16, clip : Bool = true) : Int32
-      return len if point.row > lines.row
+      return bytesize if point.row > lines.row
       range = offset_range_for_row(point.row)
       line = slice(range)
       return range.end if point.column > line.last_line_len_utf16
@@ -217,7 +217,7 @@ module DeltaDB
       row_len = if row_start == MAX_BASE
                   0
                 else
-                  Math.min((@newlines >> row_start).trailing_zeros_count.to_i32, len - row_start)
+                  Math.min((@newlines >> row_start).trailing_zeros_count.to_i32, bytesize - row_start)
                 end
       row_start...(row_start + row_len)
     end
@@ -282,7 +282,7 @@ module DeltaDB
         @tabs = other.tabs
         return
       end
-      shift = other.len
+      shift = other.bytesize
       @chars = other.chars | (@chars << shift)
       @chars_utf16 = other.chars_utf16 | (@chars_utf16 << shift)
       @newlines = other.newlines | (@newlines << shift)

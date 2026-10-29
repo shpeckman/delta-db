@@ -27,8 +27,8 @@ describe DeltaDB::Edit do
     edit.empty?.should be_true
 
     edit = DeltaDB::Edit(Int32).new(2..5, 2..9)
-    edit.old_len.should eq 3
-    edit.new_len.should eq 7
+    edit.old_size.should eq 3
+    edit.new_size.should eq 7
   end
 end
 
@@ -55,7 +55,7 @@ describe DeltaDB::BufferSnapshot do
     buffer_id = DeltaDB::BufferId.new(1u64)
     snapshot = DeltaDB::BufferSnapshot.build("hello", buffer_id)
     snapshot.text.should eq "hello"
-    snapshot.len.should eq 5
+    snapshot.bytesize.should eq 5
     snapshot.empty?.should be_false
   end
 
@@ -64,7 +64,7 @@ describe DeltaDB::BufferSnapshot do
     snapshot = DeltaDB::BufferSnapshot.build("hello world", buffer_id)
 
     ts = DeltaDB::Lamport.new(DeltaDB::ReplicaId::LOCAL, 5u32)
-    op = DeltaDB::EditOperation.new(ts, snapshot.version.deep_clone, [6u32..11u32], ["there"])
+    op = DeltaDB::EditOperation.new(ts, snapshot.version.clone, [6u32..11u32], ["there"])
     snapshot.edit([op])
 
     snapshot.text.should eq "hello there"

@@ -1,7 +1,7 @@
 # src/delta_db/text_summary.cr
 module DeltaDB
   struct TextSummary
-    getter len : UInt64
+    getter bytesize : UInt64
     getter chars : UInt64
     getter len_utf16 : OffsetUtf16
     getter lines : Point
@@ -12,7 +12,7 @@ module DeltaDB
     getter longest_row_chars : UInt32
 
     def initialize(
-      @len : UInt64 = 0u64,
+      @bytesize : UInt64 = 0u64,
       @chars : UInt64 = 0u64,
       @len_utf16 : OffsetUtf16 = OffsetUtf16.zero,
       @lines : Point = Point.zero,
@@ -30,7 +30,7 @@ module DeltaDB
 
     def self.newline : TextSummary
       TextSummary.new(
-        len: 1u64,
+        bytesize: 1u64,
         chars: 1u64,
         len_utf16: OffsetUtf16.new(1u64),
         lines: Point.new(1u32, 0u32),
@@ -86,7 +86,7 @@ module DeltaDB
     end
 
     def add_newline : Nil
-      @len += 1u64
+      @bytesize += 1u64
       @len_utf16 += OffsetUtf16.new(1u64)
       @last_line_chars = 0u32
       @last_line_len_utf16 = 0u32
@@ -117,7 +117,7 @@ module DeltaDB
       end
 
       @chars += other.chars
-      @len += other.len
+      @bytesize += other.bytesize
       @len_utf16 += other.len_utf16
       @lines += other.lines
     end
@@ -129,7 +129,7 @@ module DeltaDB
     end
 
     def ==(other : TextSummary) : Bool
-      @len == other.len &&
+      @bytesize == other.bytesize &&
         @chars == other.chars &&
         @len_utf16 == other.len_utf16 &&
         @lines == other.lines &&

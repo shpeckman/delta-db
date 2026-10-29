@@ -44,7 +44,7 @@ describe "typed client models" do
 
     buffer.text.should eq "aXc"
     buffer.resolve_anchor(anchor).should eq 2
-    buffer.as_rope.to_s.should eq "aXc"
+    buffer.to_rope.to_s.should eq "aXc"
     buffer.fragments.map(&.text).join.should eq "aXbc"
     buffer.seal
     buffer.sealed?.should be_true

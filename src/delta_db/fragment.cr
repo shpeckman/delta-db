@@ -4,7 +4,7 @@ module DeltaDB
     getter id : Locator
     getter timestamp : Lamport
     getter insertion_offset : UInt32
-    getter len : UInt32
+    getter bytesize : UInt32
     property visible : Bool
     property deletions : Array(Lamport)
     property max_undos : Global
@@ -14,7 +14,7 @@ module DeltaDB
       @id : Locator,
       @timestamp : Lamport,
       @insertion_offset : UInt32 = 0u32,
-      @len : UInt32 = 0u32,
+      @bytesize : UInt32 = 0u32,
       @visible : Bool = true,
       @deletions : Array(Lamport) = [] of Lamport,
       @max_undos : Global = Global.new,

@@ -11,11 +11,11 @@ module DeltaDB
       @old.begin == @old.end && @new.begin == @new.end
     end
 
-    def old_len : D
+    def old_size : D
       @old.end - @old.begin
     end
 
-    def new_len : D
+    def new_size : D
       @new.end - @new.begin
     end
   end
