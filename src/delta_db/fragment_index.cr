@@ -1,6 +1,8 @@
 # src/delta_db/fragment_index.cr
 module DeltaDB
   class FragmentIndex
+    DeltaDB.uuid_id Id
+
     enum Origin
       Original
       Inserted
@@ -68,6 +70,14 @@ module DeltaDB
         @aliases[plan.fragment_id] = Alias.new(plan.fragment_id, 0u32...updated.bytesize.to_u32)
       end
       plan.splices.map { |splice| AppliedEdit.new(plan.fragment_id, splice.range, splice.text) }
+    end
+
+    def self.valid_ranges?(ranges : Array(Range(UInt32, UInt32))) : Bool
+      ranges.each_with_index do |range, index|
+        return false if range.end < range.begin
+        return false if index > 0 && ranges[index - 1].end > range.begin
+      end
+      true
     end
   end
 end

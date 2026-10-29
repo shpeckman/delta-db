@@ -41,6 +41,18 @@ module DeltaDB
       @text_buffer.edit(edits)
     end
 
+    def apply(delta : Delta) : Nil
+      operation = delta.operation || raise ArgumentError.new("delta has no client operation")
+      case operation.kind
+      when .edit_buffer?
+        edit_as_actor(operation.ranges.zip(operation.new_text).to_a)
+      when .seal?
+        seal
+      else
+        raise ArgumentError.new("unsupported buffer operation: #{operation.kind}")
+      end
+    end
+
     def apply_operation(operation : Text::Operation) : Array(Text::Operation)
       @seal_state.ensure_mutable!
       @text_buffer.apply(operation)

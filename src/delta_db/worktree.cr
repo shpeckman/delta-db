@@ -35,14 +35,14 @@ module DeltaDB
     def apply(delta : FileDelta) : Nil
       @seal_state.ensure_mutable!
       case delta
-      when FileDelta::CreateFile
+      in FileDelta::CreateFile
         create(delta.path, "", delta.mode, delta.line_endings)
-      when FileDelta::Edit
+      in FileDelta::Edit
         write(delta.path, delta.new_text)
-      when FileDelta::Delete
+      in FileDelta::Delete
         @files.delete(delta.path) || raise NotFoundError.new("missing path: #{delta.path}")
         advance_version
-      when FileDelta::Rename
+      in FileDelta::Rename
         file = @files.delete(delta.old_path) || raise NotFoundError.new("missing path: #{delta.old_path}")
         if @files.has_key?(delta.new_path)
           raise ArgumentError.new("path already exists: #{delta.new_path}")
@@ -50,7 +50,7 @@ module DeltaDB
         file.path = delta.new_path
         @files[delta.new_path] = file
         advance_version
-      when FileDelta::SetMode
+      in FileDelta::SetMode
         file = required_file(delta.path)
         file.kind = delta.mode
         unless delta.mode.file?
@@ -58,18 +58,30 @@ module DeltaDB
           file.blob = nil
         end
         advance_version
-      when FileDelta::SetLineEndings
+      in FileDelta::SetLineEndings
         file = required_file(delta.path)
         file.line_ending = delta.line_endings
         advance_version
-      when FileDelta::CreateDir
+      in FileDelta::CreateDir
         create(delta.path, mode: FileMode::Directory)
-      when FileDelta::CreateSymlink
+      in FileDelta::CreateSymlink
         if @files.has_key?(delta.path)
           raise ArgumentError.new("path already exists: #{delta.path}")
         end
         @files[delta.path] = Entry.new(delta.path, FileMode::Symlink, symlink_target: delta.target)
         advance_version
+      end
+    end
+
+    def apply(delta : Delta) : Nil
+      operation = delta.operation || raise ArgumentError.new("delta has no client operation")
+      case operation.kind
+      when .edit_worktree?
+        apply(operation.file_delta.not_nil!)
+      when .seal?
+        seal
+      else
+        raise ArgumentError.new("unsupported worktree operation: #{operation.kind}")
       end
     end
 
