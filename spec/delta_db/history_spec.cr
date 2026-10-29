@@ -1,25 +1,5 @@
-# spec/delta_db/items_1_4_spec.cr
+# spec/delta_db/history_spec.cr
 require "../spec_helper"
-
-describe DeltaDB::Map do
-  it "stores and retrieves register values" do
-    map = DeltaDB::Map.new
-    map.set("name", "delta")
-    map.get("name").should eq "delta"
-    map.get("missing").should be_nil
-  end
-end
-
-describe DeltaDB::Replica do
-  it "holds a value and ticks a Lamport clock" do
-    map = DeltaDB::Map.new
-    replica = DeltaDB::Replica(DeltaDB::Map).new(map)
-    first = replica.tick
-    first.value.should eq 1u32
-    replica.tick.value.should eq 2u32
-    replica.value.should eq map
-  end
-end
 
 describe "history engine" do
   it "constructs a delta run and history record" do
