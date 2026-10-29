@@ -43,7 +43,7 @@ describe DeltaDB::Diff do
 
   it "counts equal elements as the LCS" do
     ops = DeltaDB::Diff.chars("kitten", "sitting")
-    ops.count(DeltaDB::DiffOp::Equal).should eq 4 # "ittn" is the LCS
+    ops.count(DeltaDB::DiffOp::Equal).should eq 4
   end
 
   it "is a no-op (all equal) for identical input" do

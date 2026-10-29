@@ -59,7 +59,7 @@ describe DeltaDB::Chunk do
   it "slices to an equivalent sub-chunk" do
     s = "hello\nworld\nfoobar"
     chunk = DeltaDB::Chunk.new(s)
-    sub = chunk.slice(6...11) # "world"
+    sub = chunk.slice(6...11)
     sub.text.should eq "world"
     sub.text_summary.should eq DeltaDB::TextSummary.from("world")
   end
