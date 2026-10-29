@@ -91,8 +91,9 @@ describe "delta ids" do
     version.union(DeltaDB::HistoryVersion.from_id(second)).should eq version
 
     third = DeltaDB::DeltaBatchId.new(first_uuid, 3u64)
-    version.observe(third)
-    version.ids.should eq [first, third, second]
+    version.union(third).ids.should eq [first, third, second]
+    version.union(first).should eq version
+    version.ids.should eq [first, second]
   end
 
   it "round-trips the persisted version text format" do
